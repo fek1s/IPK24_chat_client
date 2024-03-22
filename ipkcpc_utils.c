@@ -2,10 +2,7 @@
 // Created by fuki on 22.3.24.
 //
 
-#include <arpa/inet.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+
 #include "ipkcpc_utils.h"
 
 struct sockaddr_in createServerAddress(char* ip, int16_t port){

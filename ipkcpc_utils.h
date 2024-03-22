@@ -5,6 +5,12 @@
 #ifndef IPK_PROJ1_IPKCPC_UTILS_H
 #define IPK_PROJ1_IPKCPC_UTILS_H
 
+#include "stdint.h"
+#include <arpa/inet.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 /**
  * Create server address
  * @param ip IP address

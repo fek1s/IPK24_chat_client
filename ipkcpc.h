@@ -11,7 +11,12 @@
 #define IPK_PROJ1_IPKCPC_H
 
 #include "stdio.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+//#include <arpa/inet.h>
+#include <stdio.h>
+#include <string.h>
 
-void hello();
+//void hello();
 
 #endif //IPK_PROJ1_IPKCPC_H
