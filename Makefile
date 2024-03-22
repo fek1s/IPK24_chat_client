@@ -2,7 +2,7 @@ EXE=ipkcpc
 CFLAGS= -std=gnu99 -Wall -Wextra -Werror -pedantic
 CC=gcc
 
-$(EXE): $(EXE).o
+ipkcpc: $(EXE).o
 	@echo "Liking objects to executable"
 	$(CC) $(CFLAGS) $^ -o $@
 
