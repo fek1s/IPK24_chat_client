@@ -43,5 +43,7 @@ int main(){
     recv(socketFD,buffer,1024,0 );
     printf("Received: %s\n", buffer);
 
+    close(socketFD);
+
     return 0;
 }
