@@ -23,6 +23,6 @@ struct sockaddr_in createServerAddress(char* ip, int16_t port);
  * Create a socket
  * @return socket file descriptor
  */
-int createSocket();
+int createTcpSocket();
 
 #endif //IPK_PROJ1_IPKCPC_UTILS_H

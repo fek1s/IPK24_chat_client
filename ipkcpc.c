@@ -17,9 +17,9 @@ int main(){
 
     // Loopback address for testing
     char* ip = "127.0.0.1";
-    int16_t port = 6969;
+    int16_t port = 2000;
 
-    int socketFD = createSocket();
+    int socketFD = createTcpSocket();
     if (socketFD == -1){
         printf("Failed to create socket\n");
         return 1;
@@ -36,12 +36,20 @@ int main(){
     }
     printf("Connected to server\n");
 
-    char* mesage;
-    mesage = "This is a test massage for netcat\n";
-    send(socketFD,mesage, strlen(mesage), 0);
-    char buffer[1024];
-    recv(socketFD,buffer,1024,0 );
-    printf("Received: %s\n", buffer);
+    char *line = NULL;
+    size_t lineSize = 0;
+    printf("Enter message:\n");
+
+    while (1){
+        ssize_t charCount = getline(&line, &lineSize, stdin);
+        if (charCount > 0){
+            if (strcmp(line, "exit\n") == 0){
+                break;
+            }
+            ssize_t sendAmount = send(socketFD, line, charCount, 0);
+            printf("Sent %ld bytes\n", sendAmount);
+        }
+    }
 
     close(socketFD);
 

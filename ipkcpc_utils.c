@@ -12,10 +12,15 @@ struct sockaddr_in createServerAddress(char* ip, int16_t port){
     // Convert port number to network byte order (big endian)
     serverAddress.sin_port = htons(port);
     // Convert IP address to binary form
-    inet_pton(AF_INET, ip, &serverAddress.sin_addr.s_addr);
+    if (strlen(ip) == 0){
+        serverAddress.sin_addr.s_addr = INADDR_ANY;
+    }
+    else {
+        inet_pton(AF_INET, ip, &serverAddress.sin_addr.s_addr);
+    }
     return serverAddress;
 }
 
-int createSocket(){
+int createTcpSocket(){
     return socket(AF_INET, SOCK_STREAM, 0);
 }
