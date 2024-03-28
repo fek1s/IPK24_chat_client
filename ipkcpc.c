@@ -10,29 +10,39 @@
 #include "ipkcpc.h"
 
 int main(int argc, char* argv[]){
-    // Define server address
-    //char* ip = "142.251.36.142";
-    //int16_t port = 80;
 
     ProgramArguments args = parseArguments(argc, argv);
 
     int socketFD = createTcpSocket();
     if (socketFD == -1){
+        // @DEBUG
         printf("Failed to create socket\n");
         return 1;
     }
+    // @DEBUG
     printf("Socket binded successfully\n");
 
-    struct sockaddr_in serverAddress = createServerAddress(args.server_ip, args.port);
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
 
-    if (connect(socketFD,(struct sockaddr*)&serverAddress,sizeof(serverAddress)) == -1){
+    getaddrinfo(args.server_ip, NULL, &hints, &res);
+
+    struct sockaddr_in *addr = (struct sockaddr_in*)res->ai_addr;
+    // @DEBUG
+    printf("Server IP: %s\n", inet_ntoa(addr->sin_addr));
+    addr->sin_port = htons(args.port);
+
+    if (connect(socketFD, (struct sockaddr*)addr, sizeof(*addr)) == -1){
         printf("Failed to connect to server\n");
         return 1;
     }
+    // @DEBUG
     printf("Connected to server\n");
 
     char *line = NULL;
     size_t lineSize = 0;
+    // @DEBUG
     printf("Enter message:\n");
 
     //Create thread for receiving data
@@ -47,7 +57,11 @@ int main(int argc, char* argv[]){
                 break;
             }
             ssize_t sendAmount = send(socketFD, line, charCount, 0);
-            printf("Sent %ld bytes\n", sendAmount);
+            //printf("Sent %ld bytes\n", sendAmount);
+            if (sendAmount == -1){
+                printf("Failed to send data\n");
+                break;
+            }
         }
     }
 
