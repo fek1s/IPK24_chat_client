@@ -22,33 +22,30 @@ int main(int argc, char* argv[]){
     // @DEBUG
     printf("Socket binded successfully\n");
 
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
 
-    getaddrinfo(args.server_ip, NULL, &hints, &res);
+    struct sockaddr_in addr = resolve_host(args.server_ip, args.port);
 
-    struct sockaddr_in *addr = (struct sockaddr_in*)res->ai_addr;
-    // @DEBUG
-    printf("Server IP: %s\n", inet_ntoa(addr->sin_addr));
-    addr->sin_port = htons(args.port);
-
-    if (connect(socketFD, (struct sockaddr*)addr, sizeof(*addr)) == -1){
+    if (connect(socketFD, (struct sockaddr*)&addr, sizeof(addr)) == -1){
         printf("Failed to connect to server\n");
         return 1;
     }
     // @DEBUG
     printf("Connected to server\n");
 
-    char *line = NULL;
+    char *line;
     size_t lineSize = 0;
     // @DEBUG
-    printf("Enter message:\n");
+    //printf("Enter message:\n");
 
     //Create thread for receiving data
     pthread_t tid;
     pthread_create(&tid, NULL, receiveAndPrintIncomingData, (void*)&socketFD);
-
+    // @DEBUG
+    char *auth = "AUTH user1 AS User-1 USING pass1\r\n";
+    ssize_t sendAmount = send(socketFD, auth, strlen(auth), 0);
+    if (sendAmount == -1){
+        printf("Failed to send data\n");
+    }
 
     while (1){
         ssize_t charCount = getline(&line, &lineSize, stdin);

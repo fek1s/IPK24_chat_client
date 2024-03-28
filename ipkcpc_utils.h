@@ -32,13 +32,12 @@ typedef struct {
 ProgramArguments parseArguments(int argc, char *argv[]);
 
 /**
- * Create server address
+ * Resolve host
  * @param ip IP address
  * @param port port number
- * @return server address
+ * @return resolved host
  */
-struct sockaddr_in createServerAddress(char* ip, int16_t port);
-
+struct sockaddr_in resolve_host(char *ip,u_int16_t port);
 /**
  * Create a socket
  * @return socket file descriptor

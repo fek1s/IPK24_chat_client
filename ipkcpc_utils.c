@@ -5,20 +5,18 @@
 
 #include "ipkcpc_utils.h"
 
-struct sockaddr_in createServerAddress(char* ip, int16_t port){
-    struct sockaddr_in serverAddress;
-    memset(&serverAddress, 0, sizeof(serverAddress));
-    serverAddress.sin_family = AF_INET;
-    // Convert port number to network byte order (big endian)
-    serverAddress.sin_port = htons(port);
-    // Convert IP address to binary form
-    if (strlen(ip) == 0){
-        serverAddress.sin_addr.s_addr = INADDR_ANY;
-    }
-    else {
-        inet_pton(AF_INET, ip, &serverAddress.sin_addr.s_addr);
-    }
-    return serverAddress;
+struct sockaddr_in resolve_host(char *ip,u_int16_t port){
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+
+    getaddrinfo(ip, NULL, &hints, &res);
+
+    struct sockaddr_in *addr = (struct sockaddr_in*)res->ai_addr;
+    // @DEBUG
+    printf("Server IP: %s\n", inet_ntoa(addr->sin_addr));
+    addr->sin_port = htons(port);
+    return *addr;
 }
 
 void *receiveAndPrintIncomingData(void *socketFD){
@@ -36,7 +34,7 @@ void *receiveAndPrintIncomingData(void *socketFD){
             break;
         }
         else {
-            printf("Received %ld bytes: %s\n", recvAmount, buffer);
+            printf("Received %ld bytes: %s", recvAmount, buffer);
         }
     }
     return NULL;
