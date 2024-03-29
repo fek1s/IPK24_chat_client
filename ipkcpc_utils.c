@@ -4,6 +4,7 @@
 
 
 #include "ipkcpc_utils.h"
+char* DisplayName;
 
 struct sockaddr_in resolve_host(char *ip,u_int16_t port){
     struct addrinfo hints, *res;
@@ -118,6 +119,7 @@ char* parseMessage(char *message,ssize_t *messageSize){
             }
             char formattedMessage[MAX_MESSAGE_SIZE];
             sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
+            //memcpy(DisplayName,tokens[2], strlen(tokens[2]) + 1);
             printf("Formatted message: %s", formattedMessage);
             strcpy(message, formattedMessage);
 
@@ -130,6 +132,21 @@ char* parseMessage(char *message,ssize_t *messageSize){
         else if (strcmp(command, "/join") == 0){
             // @DEBUG
             printf("JOIN command\n");
+            int count;
+            char **tokens = split(message, " ", &count);
+            for (int i = 0; i < count; i++){
+                printf("Token %d: %s\n", i, tokens[i]);
+            }
+            char formattedMessage[MAX_MESSAGE_SIZE];
+            sprintf(formattedMessage, "JOIN %s AS %s\r\n", tokens[1],"Me");
+            printf("Formatted message: %s", formattedMessage);
+            strcpy(message, formattedMessage);
+
+            // Free the memory allocated for tokens
+            for (int i = 0; i < count; i++) {
+                free(tokens[i]);
+            }
+            free(tokens);
         }
         else if (strcmp(command, "/rename") == 0){
             // @DEBUG
@@ -142,7 +159,7 @@ char* parseMessage(char *message,ssize_t *messageSize){
         else if (strcmp(command, "/exit") == 0){
             // @DEBUG
             printf("EXIT command\n");
-            strcpy(message, "exit\n");
+            strcpy(message, "/exit\n");
         }
         else {
             printf("Invalid command\n");

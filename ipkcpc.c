@@ -31,6 +31,7 @@ int main(int argc, char* argv[]){
         return 1;
     }
     // @DEBUG
+    printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
     printf("Connected to server\n");
 
 
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]){
         char* message = parseMessage(line, &charCount);
         printf("Message: %s\n", message);
         if (strlen(message) > 0){
-            if (strcmp(message, "exit\n") == 0){
+            if (strcmp(message, "/exit\n") == 0){
                 break;
             }
             ssize_t sendAmount = send(socketFD, message, strlen(message), 0);
