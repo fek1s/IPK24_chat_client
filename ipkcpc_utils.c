@@ -40,7 +40,7 @@ void *receiveAndPrintIncomingData(void *socketFD){
             break;
         }
         else {
-            printf("Received %ld bytes: %s", recvAmount, buffer);
+            printf("Server: %s", buffer);
         }
     }
     //free(socketFDPtr);
@@ -104,6 +104,7 @@ char* parseMessage(char *message,ssize_t *messageSize){
         message[*messageSize-1] = '\0';
         *messageSize -= 1;
     }
+    char formattedMessage[MAX_MESSAGE_SIZE];
     if (message[0] == '/'){
 
         char command[MAX_COMMAND_SIZE];
@@ -119,7 +120,6 @@ char* parseMessage(char *message,ssize_t *messageSize){
             for (int i = 0; i < count; i++){
                 printf("Token %d: %s\n", i, tokens[i]);
             }
-            char formattedMessage[MAX_MESSAGE_SIZE];
             sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
             memcpy(DisplayName,tokens[2],strlen(tokens[2])+1);
 
@@ -134,6 +134,7 @@ char* parseMessage(char *message,ssize_t *messageSize){
                 free(tokens[i]);
             }
             free(tokens);
+            return message;
         }
         else if (strcmp(command, "/join") == 0){
             // @DEBUG
@@ -153,6 +154,7 @@ char* parseMessage(char *message,ssize_t *messageSize){
                 free(tokens[i]);
             }
             free(tokens);
+            return message;
         }
         else if (strcmp(command, "/rename") == 0){
             // @DEBUG
@@ -171,23 +173,33 @@ char* parseMessage(char *message,ssize_t *messageSize){
                 free(tokens[i]);
             }
             free(tokens);
-            return "/RENAME";
+            return "/CONTINUE";
         }
         else if (strcmp(command, "/help") == 0){
             // @DEBUG
             printf("HELP command\n");
-
+            printf("Available commands:\n");
+            printf("/help - Display help\n");
+            printf("/auth <username> <password> <secret> - To be able to chat\n");
+            printf("/join <channel> - Join a channel\n");
+            printf("/rename <new_name> - Rename yourself\n");
+            printf("/exit - Exit the chat\n");
+            return "/CONTINUE"; // Continue the loop
         }
         else if (strcmp(command, "/exit") == 0){
             // @DEBUG
             printf("EXIT command\n");
             strcpy(message, "/exit\n");
+            return message;
         }
         else {
             printf("Invalid command\n");
+            return "/CONTINUE";
         }
     }
 
+    sprintf(formattedMessage, "MSG FROM %s IS %s\r\n", DisplayName, message);
+    strcpy(message, formattedMessage);
     return message;
 }
 

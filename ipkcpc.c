@@ -47,7 +47,7 @@ int main(int argc, char* argv[]){
         char* message = parseMessage(line, &charCount);
         // @DEBUG
         printf("Message: %s\n", message);
-        if (strcmp(message, "/RENAME")==0){
+        if (strcmp(message, "/CONTINUE")==0){
             // @DEBUG
             //printf("Renamed\n");
             continue;
