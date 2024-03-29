@@ -4,7 +4,7 @@
 
 
 #include "ipkcpc_utils.h"
-char* DisplayName;
+char DisplayName[20];
 
 struct sockaddr_in resolve_host(char *ip,u_int16_t port){
     struct addrinfo hints, *res;
@@ -110,8 +110,10 @@ char* parseMessage(char *message,ssize_t *messageSize){
         getCommand(message,command);
 
         if (strcmp(command, "/auth") == 0){
+
             // @DEBUG
             printf("AUTH command\n");
+
             int count;
             char **tokens = split(message, " ", &count);
             for (int i = 0; i < count; i++){
@@ -119,8 +121,12 @@ char* parseMessage(char *message,ssize_t *messageSize){
             }
             char formattedMessage[MAX_MESSAGE_SIZE];
             sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
-            //memcpy(DisplayName,tokens[2], strlen(tokens[2]) + 1);
+            memcpy(DisplayName,tokens[2],strlen(tokens[2])+1);
+
+            // @DEBUG
             printf("Formatted message: %s", formattedMessage);
+            printf("Display name: %s\n", DisplayName);
+
             strcpy(message, formattedMessage);
 
             // Free the memory allocated for tokens
@@ -138,7 +144,7 @@ char* parseMessage(char *message,ssize_t *messageSize){
                 printf("Token %d: %s\n", i, tokens[i]);
             }
             char formattedMessage[MAX_MESSAGE_SIZE];
-            sprintf(formattedMessage, "JOIN %s AS %s\r\n", tokens[1],"Me");
+            sprintf(formattedMessage, "JOIN %s AS %s\r\n", tokens[1],DisplayName);
             printf("Formatted message: %s", formattedMessage);
             strcpy(message, formattedMessage);
 
