@@ -10,19 +10,24 @@ struct sockaddr_in resolve_host(char *ip,u_int16_t port){
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
 
+    // Resolve host
     getaddrinfo(ip, NULL, &hints, &res);
-
     struct sockaddr_in *addr = (struct sockaddr_in*)res->ai_addr;
-    // @DEBUG
-    printf("Server IP: %s\n", inet_ntoa(addr->sin_addr));
-    addr->sin_port = htons(port);
-    return *addr;
+
+    // Socket address structure
+    struct sockaddr_in result;
+
+    memcpy(&result, addr, sizeof(result));
+    // Free the memory allocated for res
+    freeaddrinfo(res);
+    result.sin_port = htons(port);
+    return result;
 }
 
 void *receiveAndPrintIncomingData(void *socketFD){
     int *socketFDPtr = (int*)socketFD;
     int socket = *socketFDPtr;
-    char buffer[1024];
+    char buffer[MAX_MESSAGE_SIZE];
     while (1){
         ssize_t recvAmount = recv(socket, buffer, sizeof(buffer), 0);
         if (recvAmount == 0){
@@ -37,6 +42,8 @@ void *receiveAndPrintIncomingData(void *socketFD){
             printf("Received %ld bytes: %s", recvAmount, buffer);
         }
     }
+    //free(socketFDPtr);
+
     return NULL;
 }
 
@@ -90,4 +97,120 @@ ProgramArguments parseArguments(int argc, char *argv[]){
 
     return args;
 }
+
+char* parseMessage(char *message,ssize_t *messageSize){
+    if (message[*messageSize-1] == '\n'){
+        message[*messageSize-1] = '\0';
+        *messageSize -= 1;
+    }
+    if (message[0] == '/'){
+
+        char command[MAX_COMMAND_SIZE];
+        getCommand(message,command);
+
+        if (strcmp(command, "/auth") == 0){
+            // @DEBUG
+            printf("AUTH command\n");
+            int count;
+            char **tokens = split(message, " ", &count);
+            for (int i = 0; i < count; i++){
+                printf("Token %d: %s\n", i, tokens[i]);
+            }
+            char formattedMessage[MAX_MESSAGE_SIZE];
+            sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
+            printf("Formatted message: %s", formattedMessage);
+            strcpy(message, formattedMessage);
+
+            // Free the memory allocated for tokens
+            for (int i = 0; i < count; i++) {
+                free(tokens[i]);
+            }
+            free(tokens);
+        }
+        else if (strcmp(command, "/join") == 0){
+            // @DEBUG
+            printf("JOIN command\n");
+        }
+        else if (strcmp(command, "/rename") == 0){
+            // @DEBUG
+            printf("RENAME command\n");
+        }
+        else if (strcmp(command, "/help") == 0){
+            // @DEBUG
+            printf("HELP command\n");
+        }
+        else if (strcmp(command, "/exit") == 0){
+            // @DEBUG
+            printf("EXIT command\n");
+            strcpy(message, "exit\n");
+        }
+        else {
+            printf("Invalid command\n");
+        }
+    }
+
+    return message;
+}
+
+void getCommand(char *message,char* command){
+    int i = 0;
+    printf("Message: %s\n", message);
+    while (message[i] != ' ' && message[i] != '\n' && message[i] != '\0'){
+        command[i] = message[i];
+        printf("Command: %c\n", command[i]);
+        i++;
+    }
+    command[i] = '\0';
+}
+
+char** split(const char *str, const char *delimiter, int *count) {
+    char **result = NULL;
+    char *token;
+    int i = 0;
+
+    // Copy the input string to avoid modifying the original string
+    char *str_copy = strdup(str);
+    if (str_copy == NULL) {
+        fprintf(stderr, "Memory allocation error.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Allocate memory for the array of strings
+    result = (char**)malloc(sizeof(char*));
+    if (result == NULL) {
+        fprintf(stderr, "Memory allocation error.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Tokenize the string using the delimiter
+    token = strtok(str_copy, delimiter);
+    while (token != NULL) {
+        // Resize the array to accommodate the new token
+        result = (char**)realloc(result, (i + 1) * sizeof(char*));
+        if (result == NULL) {
+            fprintf(stderr, "Memory allocation error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Allocate memory for the token
+        result[i] = strdup(token);
+        if (result[i] == NULL) {
+            fprintf(stderr, "Memory allocation error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        i++;
+        token = strtok(NULL, delimiter);
+    }
+
+    *count = i; // Set the count of tokens
+
+    // Free the temporary copy of the string
+    free(str_copy);
+
+    return result;
+}
+
+
+
 

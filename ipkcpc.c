@@ -21,6 +21,7 @@ int main(int argc, char* argv[]){
     }
     // @DEBUG
     printf("Socket binded successfully\n");
+    printf("Server IP: %s\n", args.server_ip);
 
 
     struct sockaddr_in addr = resolve_host(args.server_ip, args.port);
@@ -32,28 +33,24 @@ int main(int argc, char* argv[]){
     // @DEBUG
     printf("Connected to server\n");
 
-    char *line;
-    size_t lineSize = 0;
-    // @DEBUG
-    //printf("Enter message:\n");
 
+    char *line = NULL;
+    size_t lineSize = 0;
     //Create thread for receiving data
     pthread_t tid;
     pthread_create(&tid, NULL, receiveAndPrintIncomingData, (void*)&socketFD);
-    // @DEBUG
-    char *auth = "AUTH user1 AS User-1 USING pass1\r\n";
-    ssize_t sendAmount = send(socketFD, auth, strlen(auth), 0);
-    if (sendAmount == -1){
-        printf("Failed to send data\n");
-    }
 
     while (1){
         ssize_t charCount = getline(&line, &lineSize, stdin);
-        if (charCount > 0){
-            if (strcmp(line, "exit\n") == 0){
+        // print line
+        printf("Line: %s\n", line);
+        char* message = parseMessage(line, &charCount);
+        printf("Message: %s\n", message);
+        if (strlen(message) > 0){
+            if (strcmp(message, "exit\n") == 0){
                 break;
             }
-            ssize_t sendAmount = send(socketFD, line, charCount, 0);
+            ssize_t sendAmount = send(socketFD, message, strlen(message), 0);
             //printf("Sent %ld bytes\n", sendAmount);
             if (sendAmount == -1){
                 printf("Failed to send data\n");
@@ -61,8 +58,8 @@ int main(int argc, char* argv[]){
             }
         }
     }
-
     close(socketFD);
+    //pthread_join(tid, NULL);
 
     return 0;
 }

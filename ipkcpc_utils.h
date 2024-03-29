@@ -15,6 +15,9 @@
 #include <stdlib.h>
 #include <netdb.h>
 
+#define MAX_MESSAGE_SIZE 1500
+#define MAX_COMMAND_SIZE 30
+
 typedef struct {
     char *transport_protocol;
     char *server_ip;
@@ -56,5 +59,11 @@ int createUdpSocket();
  * @return NULL
  */
 void *receiveAndPrintIncomingData(void *socketFD);
+
+char* parseMessage(char *message,ssize_t *messageSize);
+
+void getCommand(char *message,char* command);
+
+char** split(const char *str, const char *delimiter, int *count);
 
 #endif //IPK_PROJ1_IPKCPC_UTILS_H
