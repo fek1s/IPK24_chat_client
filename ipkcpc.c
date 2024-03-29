@@ -21,7 +21,7 @@ int main(int argc, char* argv[]){
     }
     // @DEBUG
     printf("Socket binded successfully\n");
-    printf("Server IP: %s\n", args.server_ip);
+    printf("Server Host: %s\n", args.server_ip);
 
 
     struct sockaddr_in addr = resolve_host(args.server_ip, args.port);
@@ -31,22 +31,27 @@ int main(int argc, char* argv[]){
         return 1;
     }
     // @DEBUG
-    printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
+    printf("Server IP: %s\n", inet_ntoa(addr.sin_addr));
     printf("Connected to server\n");
 
-
-    char *line = NULL;
-    size_t lineSize = 0;
     //Create thread for receiving data
     pthread_t tid;
     pthread_create(&tid, NULL, receiveAndPrintIncomingData, (void*)&socketFD);
 
+    char *line = NULL;
+    size_t lineSize = 0;
     while (1){
         ssize_t charCount = getline(&line, &lineSize, stdin);
-        // print line
+        // @DEBUG
         printf("Line: %s\n", line);
         char* message = parseMessage(line, &charCount);
+        // @DEBUG
         printf("Message: %s\n", message);
+        if (strcmp(message, "/RENAME")==0){
+            // @DEBUG
+            //printf("Renamed\n");
+            continue;
+        }
         if (strlen(message) > 0){
             if (strcmp(message, "/exit\n") == 0){
                 break;

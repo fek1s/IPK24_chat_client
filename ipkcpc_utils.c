@@ -157,10 +157,26 @@ char* parseMessage(char *message,ssize_t *messageSize){
         else if (strcmp(command, "/rename") == 0){
             // @DEBUG
             printf("RENAME command\n");
+
+            int count;
+            char **tokens = split(message, " ", &count);
+
+            // @DEBUG
+//            for (int i = 0; i < count; i++){
+//                printf("Token %d: %s\n", i, tokens[i]);
+//            }
+            memcpy(DisplayName,tokens[1],strlen(tokens[1])+1);
+            printf("NEW Display name: %s\n", DisplayName);
+            for (int i = 0; i < count; i++) {
+                free(tokens[i]);
+            }
+            free(tokens);
+            return "/RENAME";
         }
         else if (strcmp(command, "/help") == 0){
             // @DEBUG
             printf("HELP command\n");
+
         }
         else if (strcmp(command, "/exit") == 0){
             // @DEBUG
@@ -177,10 +193,12 @@ char* parseMessage(char *message,ssize_t *messageSize){
 
 void getCommand(char *message,char* command){
     int i = 0;
-    printf("Message: %s\n", message);
+    // DEBUG
+    //printf("Message: %s\n", message);
     while (message[i] != ' ' && message[i] != '\n' && message[i] != '\0'){
         command[i] = message[i];
-        printf("Command: %c\n", command[i]);
+        // Debug
+        //printf("Command: %c\n", command[i]);
         i++;
     }
     command[i] = '\0';
