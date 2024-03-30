@@ -196,6 +196,16 @@ int useUDP(ProgramArguments args) {
         fgets(buffer, sizeof(buffer), stdin);
         ssize_t messageSize = strlen(buffer);
         // Parse the input message TODO
+        printf("Message: %s\n", buffer);
+
+        if (strcmp(buffer, "/exit\n") == 0) {
+            break;
+        }
+
+        // parse
+        char *line = parseInputMessageUDP(buffer, &messageSize);
+        sendto(socketFD, line, strlen(line), 0, (struct sockaddr*)&addr, sizeof(addr));
+
 
         struct SendDatagram newDatagram;
         newDatagram.message = strdup(buffer);
@@ -221,7 +231,6 @@ int useUDP(ProgramArguments args) {
             fprintf(stderr, "No free slot for new datagram\n");
             return -1;
         }
-        break;
     }
     //Release memory
     for (int i = 0; i < MAX_DATAGRAMS; i++) {
@@ -234,6 +243,8 @@ int useUDP(ProgramArguments args) {
     close(socketFD);
     return 0;
 }
+
+
 
 
 

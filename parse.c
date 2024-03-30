@@ -225,5 +225,41 @@ char *parseReceivedMessage(char *message, ssize_t *messageSize){
     return message;
 }
 
+char* parseInputMessageUDP(char *message, ssize_t *messageSize) {
+    if (message[*messageSize - 1] == '\n') {
+        message[*messageSize - 1] = '\0';
+        *messageSize -= 1;
+    }
+    char formattedMessage[MAX_MESSAGE_SIZE];
+    if (message[0] == '/') {
+
+        char command[MAX_COMMAND_SIZE];
+        getCommand(message, command);
+
+        if (strcmp(command, "/auth") == 0) {
+
+            // @DEBUG
+            printf("AUTH command\n");
+            int count;
+            char **tokens = split(message, " ", &count);
+            for (int i = 0; i < count; i++){
+                printf("Token %d: %s\n", i, tokens[i]);
+            }
+            uint8_t messageType = 0x02;
+            uint16_t messageID = 0x0001;
+            memcpy(DisplayName, tokens[2], strlen(tokens[2]) + 1);
+            sprintf(formattedMessage, "%02X%02X%02X\\0%s\\0%s\\0%s\\0", messageType, (messageID >> 8) & 0xFF, messageID & 0xFF, tokens[1], DisplayName, tokens[3]);
+            strcpy(message, formattedMessage);
+            return message;
+        } else if (strcmp(command, "/join") == 0) {
+            // @DEBUG
+            printf("JOIN command\n");
+
+
+        }
+    }
+    return message;
+}
+
 
 

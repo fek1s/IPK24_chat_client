@@ -75,6 +75,8 @@ int useTCP(ProgramArguments args);
 int useUDP(ProgramArguments args);
 
 
+char* parseInputMessageUDP(char *message, ssize_t *messageSize);
+
 /**
  * Receive and print incoming data
  * @param socketFD socket file descriptor
