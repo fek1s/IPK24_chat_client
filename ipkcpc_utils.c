@@ -190,6 +190,7 @@ int useUDP(ProgramArguments args) {
 
     //char *line = NULL;
     //size_t lineSize = 0;
+    uint16_t sequenceNumber = 511;
     while(1){
         //TODO
         //check_confirmations(socketFD, addr.sin_addr.s_addr, sendDatagrams);
@@ -203,9 +204,11 @@ int useUDP(ProgramArguments args) {
         }
 
         // parse
-        char *line = parseInputMessageUDP(buffer, &messageSize);
-        sendto(socketFD, line, strlen(line), 0, (struct sockaddr*)&addr, sizeof(addr));
-
+        uint8_t *byte = parseInputMessageUDP(buffer, &messageSize, sequenceNumber);
+        //uint8_t byte[2];
+        //byte[0] = 0x02;
+        //byte[1] = 'a';
+        sendto(socketFD, byte, sizeof(byte), 0, (struct sockaddr*)&addr, sizeof(addr));
 
         struct SendDatagram newDatagram;
         newDatagram.message = strdup(buffer);
@@ -242,6 +245,23 @@ int useUDP(ProgramArguments args) {
     //free(buffer);
     close(socketFD);
     return 0;
+}
+
+uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint16_t sequenceNumber) {
+    uint8_t *message = (uint8_t*)malloc(MAX_MESSAGE_SIZE);
+    if (message == NULL) {
+        fprintf(stderr, "Memory allocation error.\n");
+        exit(EXIT_FAILURE);
+    }
+    message[0] = 0x02;
+    message[1] = (sequenceNumber >> 8) & 0xFF;
+    message[2] = sequenceNumber & 0xFF;
+    printf("Username: %s\n", username);
+    printf("Password: %s\n", password);
+    printf("Display name: %s\n", displayName);
+    printf("Sequence number: %d\n", sequenceNumber);
+
+    return message;
 }
 
 

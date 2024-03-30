@@ -75,7 +75,7 @@ int useTCP(ProgramArguments args);
 int useUDP(ProgramArguments args);
 
 
-char* parseInputMessageUDP(char *message, ssize_t *messageSize);
+uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequenceNumber);
 
 /**
  * Receive and print incoming data
@@ -115,5 +115,7 @@ void getCommand(char *message,char* command);
  * @return split string
  */
 char** split(const char *str, const char *delimiter, int *count);
+
+uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint16_t sequenceNumber);
 
 #endif //IPK_PROJ1_IPKCPC_UTILS_H
