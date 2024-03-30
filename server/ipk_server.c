@@ -62,28 +62,32 @@ void sendReceivedDataToClient(char *data, int socketFD){
 }
 
 
-void receiveAndPrintIncomingData(int socketFD){
+void *receiveAndPrintIncomingData(void *socketFD){
     char buffer[1024] = {0};
+    int *socketFDPtr = (int*)socketFD;
+    int socket = *socketFDPtr;
+
     while (true){
         memset(buffer, 0, 1024);
-        ssize_t readAmount = recv(socketFD, buffer, 1024, 0);
+        ssize_t readAmount = recv(socket, buffer, sizeof(buffer), 0);
         if (readAmount > 0){
             printf("Received %ld bytes: %s\n", readAmount, buffer);
 
-            sendReceivedDataToClient(buffer, socketFD);
+            sendReceivedDataToClient(buffer, socket);
         }
         if (readAmount == 0){
             printf("Connection closed\n");
             break;
         }
     }
-    close(socketFD);
+    //close(socketFD);
+    return NULL;
 }
 
 void *accept_thread_forprint(void *arg){
     struct AcceptedSocket *acceptedSocket = (struct AcceptedSocket*)arg;
     printf("Client connected\n");
-    receiveAndPrintIncomingData(acceptedSocket->socketFD);
+    receiveAndPrintIncomingData((void*)&acceptedSocket->socketFD);
     return NULL;
 }
 
