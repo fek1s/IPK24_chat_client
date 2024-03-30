@@ -28,8 +28,8 @@ struct sockaddr_in resolve_host(char *ip,u_int16_t port){
 void *receiveAndPrintIncomingData(void *socketFD){
     int *socketFDPtr = (int*)socketFD;
     int socket = *socketFDPtr;
-    char buffer[MAX_MESSAGE_SIZE];
     while (1){
+        char buffer[MAX_MESSAGE_SIZE];
         ssize_t recvAmount = recv(socket, buffer, sizeof(buffer), 0);
         if (recvAmount == 0){
             printf("Server disconnected\n");
@@ -40,7 +40,12 @@ void *receiveAndPrintIncomingData(void *socketFD){
             break;
         }
         else {
-            printf("Server: %s", buffer);
+            printf("BUFFER: %s", buffer);
+            char *message = parseReceivedMessage(buffer, &recvAmount);
+            if (strcmp(message, "0") == 0){
+                continue;
+            }
+            fprintf(stdout, "%s", message);
         }
     }
     //free(socketFDPtr);
@@ -99,7 +104,7 @@ ProgramArguments parseArguments(int argc, char *argv[]){
     return args;
 }
 
-char* parseMessage(char *message,ssize_t *messageSize){
+char* parseInputMessage(char *message,ssize_t *messageSize){
     if (message[*messageSize-1] == '\n'){
         message[*messageSize-1] = '\0';
         *messageSize -= 1;
@@ -117,9 +122,9 @@ char* parseMessage(char *message,ssize_t *messageSize){
 
             int count;
             char **tokens = split(message, " ", &count);
-            for (int i = 0; i < count; i++){
-                printf("Token %d: %s\n", i, tokens[i]);
-            }
+//            for (int i = 0; i < count; i++){
+//                printf("Token %d: %s\n", i, tokens[i]);
+//            }
             sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
             memcpy(DisplayName,tokens[2],strlen(tokens[2])+1);
 
@@ -141,9 +146,9 @@ char* parseMessage(char *message,ssize_t *messageSize){
             printf("JOIN command\n");
             int count;
             char **tokens = split(message, " ", &count);
-            for (int i = 0; i < count; i++){
-                printf("Token %d: %s\n", i, tokens[i]);
-            }
+//            for (int i = 0; i < count; i++){
+//                printf("Token %d: %s\n", i, tokens[i]);
+//            }
             char formattedMessage[MAX_MESSAGE_SIZE];
             sprintf(formattedMessage, "JOIN %s AS %s\r\n", tokens[1],DisplayName);
             printf("Formatted message: %s", formattedMessage);
@@ -200,6 +205,72 @@ char* parseMessage(char *message,ssize_t *messageSize){
 
     sprintf(formattedMessage, "MSG FROM %s IS %s\r\n", DisplayName, message);
     strcpy(message, formattedMessage);
+    return message;
+}
+
+char *parseReceivedMessage(char *message, ssize_t *messageSize){
+    if (message[*messageSize-1] == '\n'){
+        message[*messageSize-1] = '\0';
+        *messageSize -= 1;
+    }
+    int count;
+    char **tokens = split(message, " ", &count);
+    // @DEBUG
+//    for (int i = 0; i < count; i++){
+//        printf("Token %d: %s\n", i, tokens[i]);
+//    }
+
+    if (strcmp(tokens[0], "MSG") == 0){
+        char formattedMessage[MAX_MESSAGE_SIZE];
+        char messageCopy[MESSAGE_CONTENT];
+        strcpy(messageCopy, tokens[4]);
+
+        for (int i = 5; i < count; i++) {
+            char* temp = tokens[i];
+            strcat(messageCopy, " ");
+            strcat(messageCopy, temp);
+        }
+        sprintf(formattedMessage, "%s: %s\n", tokens[2], messageCopy);
+        strcpy(message, formattedMessage);
+    }
+    else if (strcmp(tokens[0], "ERR") == 0){
+        char formattedMessage[MAX_MESSAGE_SIZE];
+        sprintf(formattedMessage, "ERROR: %s\n", tokens[1]);
+        strcpy(message, formattedMessage);
+
+    }
+    else if (strcmp(tokens[0], "REPLY") == 0){
+        char messageCopy[MESSAGE_CONTENT];
+        strcpy(messageCopy, tokens[3]);
+        for (int i = 4; i < count; ++i) {
+            char* temp = tokens[i];
+            strcat(messageCopy, " ");
+            strcat(messageCopy, temp);
+        }
+
+        if (strcmp(tokens[1], "OK") == 0){
+            printf("Success: %s\n", messageCopy);
+            strcpy(message, "0");
+            return message;
+        }
+        else {
+            // Failure
+            printf("Failure: %s\n", messageCopy);
+            strcpy(message, "0");
+            return message;
+        }
+    }
+    else {
+        char formattedMessage[MAX_MESSAGE_SIZE];
+        sprintf(formattedMessage, "Unknown message: %s\n", message);
+        strcpy(message, formattedMessage);
+    }
+    // Free the memory allocated for tokens
+    for (int i = 0; i < count; i++) {
+        free(tokens[i]);
+    }
+    free(tokens);
+
     return message;
 }
 

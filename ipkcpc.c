@@ -44,7 +44,7 @@ int main(int argc, char* argv[]){
         ssize_t charCount = getline(&line, &lineSize, stdin);
         // @DEBUG
         printf("Line: %s\n", line);
-        char* message = parseMessage(line, &charCount);
+        char* message = parseInputMessage(line, &charCount);
         // @DEBUG
         printf("Message: %s\n", message);
         if (strcmp(message, "/CONTINUE")==0){
