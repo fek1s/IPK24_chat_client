@@ -14,10 +14,23 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <netdb.h>
+#include <pthread.h>
+#include <stdbool.h>
+
 
 #define MAX_MESSAGE_SIZE 1500
 #define MAX_COMMAND_SIZE 30
 #define MESSAGE_CONTENT 1400
+#define MAX_DATAGRAMS 100
+
+
+struct SendDatagram{
+    bool confirmed;
+    struct timeval sentTime;
+    char *message;
+    ssize_t messageSize;
+    int retransmissions;
+};
 
 typedef struct {
     char *transport_protocol;
@@ -53,6 +66,14 @@ int createTcpSocket();
  * @return socket file descriptor
  */
 int createUdpSocket();
+
+
+int useTCP(ProgramArguments args);
+
+
+
+int useUDP(ProgramArguments args);
+
 
 /**
  * Receive and print incoming data
