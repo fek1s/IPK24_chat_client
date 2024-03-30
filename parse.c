@@ -1,6 +1,10 @@
-//
-// Created by fuki on 30.3.24.
-//
+/**
+ * @file parse.c
+ * @brief This file contains the implementation of the functions used to parse the input and received messages
+ * @details The functions parse the input message and format it according to the protocol, and also parse the received
+ * message and format it to be displayed to the user
+ */
+
 
 #include "ipkcpc_utils.h"
 char DisplayName[20];

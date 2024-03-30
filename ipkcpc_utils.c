@@ -1,10 +1,18 @@
-//
-// Created by fuki on 22.3.24.
-//
-
-
 #include "ipkcpc_utils.h"
 
+
+/**
+ * @file ipkcpc_utils.c
+ * @brief This file contains the implementation of the utility functions used in the IPK Client-Server communication.
+ */
+
+int createTcpSocket(){
+    return socket(AF_INET, SOCK_STREAM, 0);
+}
+
+int createUdpSocket(){
+    return socket(AF_INET, SOCK_DGRAM, 0);
+}
 
 struct sockaddr_in resolve_host(char *ip,u_int16_t port){
     struct addrinfo hints, *res;
@@ -40,7 +48,9 @@ void *receiveAndPrintIncomingData(void *socketFD){
             break;
         }
         else {
+            // @DEBUG
             printf("BUFFER: %s", buffer);
+
             char *message = parseReceivedMessage(buffer, &recvAmount);
             if (strcmp(message, "0") == 0){
                 continue;
@@ -52,17 +62,6 @@ void *receiveAndPrintIncomingData(void *socketFD){
 
     return NULL;
 }
-
-int createTcpSocket(){
-    return socket(AF_INET, SOCK_STREAM, 0);
-}
-
-int createUdpSocket(){
-    return socket(AF_INET, SOCK_DGRAM, 0);
-}
-
-
-
 
 void getCommand(char *message,char* command){
     int i = 0;
