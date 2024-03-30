@@ -13,14 +13,13 @@ int main(int argc, char* argv[]){
     ProgramArguments args = parseArguments(argc, argv);
 
     if (strcmp(args.transport_protocol, "tcp") == 0){
-        int ret =  useTCP(args);
-        if (ret != 0){
-            printf("JAJA");
+        if (useTCP(args) != 0){
+            fprintf(stderr, "Failed to use TCP\n");
+            exit(1);
         }
     }
     else if (strcmp(args.transport_protocol, "udp") == 0){
-        int retval = useUDP(args);
-        if (retval != 0){
+        if (useUDP(args) != 0){
             fprintf(stderr, "Failed to use UDP\n");
             exit(1);
         }

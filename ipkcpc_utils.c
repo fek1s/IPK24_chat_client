@@ -48,7 +48,7 @@ void *receiveAndPrintIncomingData(void *socketFD){
         }
         else {
             // @DEBUG
-            printf("BUFFER: %s", buffer);
+            //printf("BUFFER: %s", buffer);
 
             char *message = parseReceivedMessage(buffer, &recvAmount);
             if (strcmp(message, "0") == 0){
@@ -123,7 +123,7 @@ char** split(const char *str, const char *delimiter, int *count) {
     return result;
 }
 
-int useTcp(ProgramArguments args) {
+int useTCP(ProgramArguments args) {
     int socketFD = createTcpSocket();
     if (socketFD == -1) {
         fprintf(stderr, "Failed to create socket\n");
@@ -136,6 +136,8 @@ int useTcp(ProgramArguments args) {
         fprintf(stderr, "Failed to connect to server\n");
         return -1;
     }
+    printf("Connected to server\n");
+    printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
 
 
     // Create thread for receiving data
