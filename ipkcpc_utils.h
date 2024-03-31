@@ -27,7 +27,7 @@
 struct SendDatagram{
     bool confirmed;
     struct timeval sentTime;
-    char *message;
+    uint8_t*  message;
     ssize_t messageSize;
     int retransmissions;
 };
@@ -116,6 +116,9 @@ void getCommand(char *message,char* command);
  */
 char** split(const char *str, const char *delimiter, int *count);
 
-uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint16_t sequenceNumber);
+uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint16_t sequenceNumber,ssize_t *messageSize);
 
+uint8_t *makeMsgMessage(uint16_t sequenceNumber,char *displayName ,char *message, ssize_t *messageSize);
+
+uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messageSize,char*displayName);
 #endif //IPK_PROJ1_IPKCPC_UTILS_H

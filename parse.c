@@ -73,6 +73,11 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
 //            for (int i = 0; i < count; i++){
 //                printf("Token %d: %s\n", i, tokens[i]);
 //            }
+            if (count != 4){
+                printf("Invalid number of arguments\n");
+                strcpy(message, "/CONTINUE");
+                return message;
+            }
             sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
             memcpy(DisplayName,tokens[2],strlen(tokens[2])+1);
 
@@ -94,9 +99,13 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
             printf("JOIN command\n");
             int count;
             char **tokens = split(message, " ", &count);
-//            for (int i = 0; i < count; i++){
-//                printf("Token %d: %s\n", i, tokens[i]);
-//            }
+
+            if (count != 2){
+                printf("Invalid number of arguments\n");
+                strcpy(message, "/CONTINUE");
+                return message;
+            }
+
             char formattedMessage[MAX_MESSAGE_SIZE];
             sprintf(formattedMessage, "JOIN %s AS %s\r\n", tokens[1],DisplayName);
             printf("Formatted message: %s", formattedMessage);
@@ -116,12 +125,18 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
             int count;
             char **tokens = split(message, " ", &count);
 
-            // @DEBUG
-//            for (int i = 0; i < count; i++){
-//                printf("Token %d: %s\n", i, tokens[i]);
-//            }
+            // Invalid number of arguments
+            if (count != 2){
+                printf("Invalid number of arguments\n");
+                strcpy(message, "/CONTINUE");
+                return message;
+            }
+
             memcpy(DisplayName,tokens[1],strlen(tokens[1])+1);
+            // @DEBUG
             printf("NEW Display name: %s\n", DisplayName);
+
+            // Free the memory allocated for tokens
             for (int i = 0; i < count; i++) {
                 free(tokens[i]);
             }
@@ -230,22 +245,91 @@ uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequ
         message[*messageSize - 1] = '\0';
         *messageSize -= 1;
     }
-    //char formattedMessage[MAX_MESSAGE_SIZE];
-    char command[MAX_COMMAND_SIZE];
-    getCommand(message, command);
+    if (message[0] == '/')
+    {
+        //char formattedMessage[MAX_MESSAGE_SIZE];
+        char command[MAX_COMMAND_SIZE];
+        getCommand(message, command);
+
+        if (strcmp(command, "/auth") == 0) {
+            printf("AUTH command\n");
+            int count;
+            char **tokens = split(message, " ", &count);
+            for (int i = 0; i < count; i++) {
+                printf("Token %d: %s\n", i, tokens[i]);
+            }
+            if (count != 4) {
+                printf("Invalid number of arguments\n");
+                return NULL;
+            }
+
+            uint8_t *authMessage = makeAuthMessage(tokens[1], tokens[3], tokens[2], sequenceNumber, messageSize);
+            memcpy(DisplayName, tokens[2], strlen(tokens[2]) + 1);
+            for (int i = 0; i < count; i++) {
+                free(tokens[i]);
+            }
+            free(tokens);
+            return authMessage;
+
+        } else if (strcmp(command, "/join") == 0) {
+            printf("JOIN command\n");
+            int count;
+            char **tokens = split(message, " ", &count);
+            for (int i = 0; i < count; i++) {
+                printf("Token %d: %s\n", i, tokens[i]);
+            }
+            if (count != 2) {
+                fprintf(stderr, "Invalid number of arguments\n");
+            }
+                uint8_t *joinMessage = makeJoinMessage(tokens[1], sequenceNumber, messageSize, DisplayName);
+                for (int i = 0; i < count; i++) {
+                    free(tokens[i]);
+                }
+                free(tokens);
+                return joinMessage;
 
 
-    printf("AUTH command\n");
-    int count;
-    char **tokens = split(message, " ", &count);
-    for (int i = 0; i < count; i++){
-        printf("Token %d: %s\n", i, tokens[i]);
+
+        } else if (strcmp(command, "/rename") == 0) {
+            printf("RENAME command\n");
+            int count;
+            char **tokens = split(message, " ", &count);
+            if (count != 2) {
+                fprintf(stderr, "Invalid number of arguments\n");
+                return NULL;
+            }
+            memcpy(DisplayName, tokens[1], strlen(tokens[1]) + 1);
+
+            // @DEBUG
+            printf("NEW Display name: %s\n", DisplayName);
+
+            for (int i = 0; i < count; i++) {
+                free(tokens[i]);
+            }
+            free(tokens);
+            return NULL;
+
+        } else if (strcmp(command, "/help") == 0) {
+            printf("HELP command\n");
+            printf("Available commands:\n");
+            printf("/help - Display help\n");
+            printf("/auth <username> <password> <secret> - To be able to chat\n");
+            printf("/join <channel> - Join a channel\n");
+            printf("/rename <new_name> - Rename yourself\n");
+            printf("/exit - Exit the chat\n");
+            //strcpy(message, "/CONTINUE");
+            return NULL;
+        } else if (strcmp(command, "/exit") == 0) {
+            printf("EXIT command\n");
+            strcpy(message, "/exit\n");
+            //TODO BYE
+        } else {
+            fprintf(stderr, "Invalid command\n");
+            return NULL;
+        }
     }
-    //uint8_t authMessage[MAX_MESSAGE_SIZE];
-    uint8_t *authMessage = makeAuthMessage(tokens[1], tokens[2], tokens[3], sequenceNumber);
-    memcpy(DisplayName, tokens[2], strlen(tokens[2]) + 1);
-
-    return authMessage;
+    printf("MSG FROM %s IS %s \r\n", DisplayName, message);
+    return makeMsgMessage(sequenceNumber, DisplayName, message, messageSize);
 }
 
 
