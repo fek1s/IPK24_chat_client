@@ -154,6 +154,7 @@ int useTCP(ProgramArguments args) {
         }
         if (strlen(message) > 0) {
             if (strcmp(message, "/exit\n") == 0) {
+                pthread_cancel(tid);
                 break;
             }
             send(socketFD, message, strlen(message), 0);
@@ -168,10 +169,10 @@ int useTCP(ProgramArguments args) {
 int useUDP(ProgramArguments args) {
     int socketFD = createUdpSocket();
     struct SendDatagram sendDatagrams[MAX_DATAGRAMS];
-    for (int i = 0; i < MAX_DATAGRAMS; i++) {
-        sendDatagrams[i].confirmed = false;
-        sendDatagrams[i].message = NULL;
-    }
+//    for (int i = 0; i < MAX_DATAGRAMS; i++) {
+//        sendDatagrams[i].confirmed = false;
+//        sendDatagrams[i].message = NULL;
+//    }
 
     if (socketFD == -1) {
         fprintf(stderr, "Failed to create socket\n");
@@ -184,16 +185,22 @@ int useUDP(ProgramArguments args) {
 
     // Create thread for receiving data
     //TODO
-    //pthread_t tid;
-    //pthread_create(&tid, NULL, receiveAndPrintIncomingData, (void*)&socketFD);
-
-    //char *line = NULL;
-    //size_t lineSize = 0;
     uint16_t sequenceNumber = 0;
+    uint16_t *seqNum = &sequenceNumber;
+    pthread_t tid_receive;
+    struct ThreadArgs thread_args_receive = {socketFD, addr, sendDatagrams, seqNum};
+    pthread_create(&tid_receive, NULL, receiveAndPrintIncomingDataUDP, (void*)&thread_args_receive);
+
+
+    //check_confirmations(socketFD, addr.sin_addr.s_addr, sendDatagrams);
+    pthread_t tid;
+    struct ThreadArgs thread_args = {socketFD, addr, sendDatagrams,seqNum};
+    pthread_create(&tid, NULL, confirmation_checker, (void*)&thread_args);
+
     while(1){
         char buffer[MAX_MESSAGE_SIZE];
         //TODO
-        //check_confirmations(socketFD, addr.sin_addr.s_addr, sendDatagrams);
+
         fgets(buffer, sizeof(buffer), stdin);
         ssize_t messageSize = strlen(buffer);
         // Parse the input message TODO
@@ -206,7 +213,10 @@ int useUDP(ProgramArguments args) {
 
 
         if (strcmp(buffer, "/exit\n") == 0) {
+            pthread_cancel(tid);
+            pthread_cancel(tid_receive);
             break;
+
         }
 
         // parse
@@ -224,9 +234,10 @@ int useUDP(ProgramArguments args) {
         newDatagram.messageSize = messageSize;
         newDatagram.confirmed = false;
         newDatagram.retransmissions = 0;
+        newDatagram.sequenceNumber = sequenceNumber;
 
         // REMOVE
-        sendto(socketFD, newDatagram.message, newDatagram.messageSize, 0, (struct sockaddr*)&addr, sizeof(addr));
+        //sendto(socketFD, newDatagram.message, newDatagram.messageSize, 0, (struct sockaddr*)&addr, sizeof(addr));
 
         // Find an empty slot in the array of datagrams
         int free_slot = -1;
@@ -239,8 +250,8 @@ int useUDP(ProgramArguments args) {
         if (free_slot != -1){
             sendDatagrams[free_slot] = newDatagram;
             //TODO
-            //send_datagram(socketFD, addr.sin_addr.s_addr, &sendDatagrams[free_slot]);
-            printf("Message sent: %s\n", sendDatagrams[free_slot].message);
+            sendDatagram(socketFD, &addr, &sendDatagrams[free_slot]);
+            //printf("Message sent: %s\n", sendDatagrams[free_slot].message);
         }
         else {
             fprintf(stderr, "No free slot for new datagram\n");
@@ -249,7 +260,7 @@ int useUDP(ProgramArguments args) {
         sequenceNumber++;
     }
     //Release memory
-    for (int i = 0; i < MAX_DATAGRAMS; i++) {
+    for (uint16_t i = 0; i < sequenceNumber; i++) {
         if (sendDatagrams[i].message != NULL) {
             free(sendDatagrams[i].message);
         }
@@ -296,7 +307,6 @@ uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint1
     message[1] = (sequenceNumber >> 8) & 0xFF;
     message[2] = sequenceNumber & 0xFF;
 
-    // TODO - add username, password, display name
     int N= strlen(username);
     for (int i = 0; i < N; i++){
         message[i + 3] = username[i];
@@ -349,6 +359,193 @@ uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messag
     return message;
 }
 
+void sendDatagram(int socketFD,struct sockaddr_in *addr, struct SendDatagram *sentDatagram) {
+    sendto(socketFD, sentDatagram->message, sentDatagram->messageSize, 0, (struct sockaddr*)addr, sizeof(*addr));
+    gettimeofday(&sentDatagram->sentTime, NULL); // Record the time the datagram was sent
+}
+
+void *confirmation_checker(void *arg) {
+    struct ThreadArgs *thread_args = (struct ThreadArgs *)arg;
+    int sockfd = thread_args->sockfd;
+    struct sockaddr_in server_addr = thread_args->server_addr;
+    struct SendDatagram *sent_datagrams = thread_args->sent_datagrams;
+
+
+    struct timeval current_time;
+
+    while (1) {
+        gettimeofday(&current_time, NULL);
+
+        // Check confirmations for each sent datagram
+        for (uint16_t i = 0; i < *thread_args->sequence_number; ++i) {
+            if (!sent_datagrams[i].confirmed && sent_datagrams[i].message != NULL) {
+                long elapsed_time = (current_time.tv_sec - sent_datagrams[i].sentTime.tv_sec) * 1000 +
+                                    (current_time.tv_usec - sent_datagrams[i].sentTime.tv_usec) / 1000;
+                if (elapsed_time >= CONFIRM_TIMEOUT_MS) {
+                    if (sent_datagrams[i].retransmissions < MAX_RETRIES) {
+                        // Retransmit message
+                        sendDatagram(sockfd, &server_addr, &sent_datagrams[i]);
+                        printf("Resending message %d (retry %d)\n", i, sent_datagrams[i].retransmissions + 1);
+                        sent_datagrams[i].retransmissions++;
+                    }
+                }
+            }
+        }
+
+        usleep(100000); // Sleep to reduce CPU load
+    }
+}
+
+void *receiveAndPrintIncomingDataUDP(void *arg){
+   struct ThreadArgs *thread_args = (struct ThreadArgs *)arg;
+
+    int sockfd = thread_args->sockfd;
+    struct SendDatagram *sent_datagrams = thread_args->sent_datagrams;
+    struct ReceivedDatagram received_datagrams[MAX_DATAGRAMS];
+    uint16_t num_received_datagrams = 1;
+    for (int i = 0; i < MAX_DATAGRAMS; i++) {
+        received_datagrams[i].sequenceNumber = 0;
+        received_datagrams[i].processed = false;
+    }
+    uint8_t buffer[MAX_MESSAGE_SIZE];
+
+    while (1){
+        struct sockaddr_in peer_addr;
+        socklen_t peer_addr_len = sizeof(peer_addr);
+        ssize_t recv_amount = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&peer_addr, &peer_addr_len);
+        printf("Received %ld bytes\n", recv_amount);
+
+        if (recv_amount > 0){
+            uint8_t type = buffer[0];
+            printf("Type: %d\n", type);
+            uint16_t sequence_number = (buffer[1] << 8) | buffer[2];
+            if (type == 0x00){
+                // Confirmation message
+                for (uint16_t i = 0; i < *thread_args->sequence_number; i++){
+                    if (sent_datagrams[i].message != NULL && !sent_datagrams[i].confirmed){
+                        if (sequence_number == sent_datagrams[i].sequenceNumber){
+                            sent_datagrams[i].confirmed = true;
+                            printf("Message %d confirmed\n", i);
+                            free(sent_datagrams[i].message);
+                            sent_datagrams[i].message = NULL;
+                            break;
+                        }
+                    }
+                }
+            }
+            else if (type == 0x01){
+                // Reply message
+                printf("Reply message\n");
+                for (uint16_t i = 0; i < num_received_datagrams; i++ ){
+                    // Check if the message has already been processed
+                    // If it has, send confirmation
+                    if (received_datagrams[i].sequenceNumber == sequence_number && received_datagrams[i].processed){
+                        sendConfirmation(sockfd, &peer_addr, sequence_number);
+                        printf("Processed already\n");
+                    }
+                    // If it has not, process the message and send confirmation and add it to the list
+                    else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
+                        received_datagrams[i].processed = true;
+                        received_datagrams[i].sequenceNumber = sequence_number;
+                        // Process the message
+                        char mesageContent[recv_amount-6];
+                        for (ssize_t i = 6; i < recv_amount; i++){
+                        //printf("%c", buffer[i]);
+                            mesageContent[i-6] = buffer[i];
+                        }
+                        char message[recv_amount-6];
+                        uint8_t result = buffer[3];
+                        if (result == 1){
+                            sprintf(message, "Success: %s", mesageContent);
+                            printf("Message: %s\n", message);
+
+                        }
+                        else { sprintf(message, "Failed: %s", mesageContent);
+                        printf("%s\n", message);
+                        }
+                        sendConfirmation(sockfd, &peer_addr, sequence_number);
+                        break;
+                    }
+
+                }
+            }
+            else if (type == 0x04){
+                // MSG message
+                for (uint16_t i = 0; i < num_received_datagrams; i++ ){
+                    // Check if the message has already been processed
+                    // If it has, send confirmation
+                    if (received_datagrams[i].sequenceNumber == sequence_number && received_datagrams[i].processed){
+                        sendConfirmation(sockfd, &peer_addr, sequence_number);
+                    }
+                    // If it has not, process the message and send confirmation and add it to the list
+                    else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
+                        received_datagrams[i].processed = true;
+                        received_datagrams[i].sequenceNumber = sequence_number;
+                        // Process the message
+                        char displayName[20];
+                        int i = 0;
+                        while (buffer[3+1]!= 0x00 && i < 20){
+                            displayName[i] = buffer[3+i];
+                            i++;
+                        }
+
+                        char messageContent[recv_amount-3-i];
+                        for (ssize_t j = i+3; j < recv_amount ; ++j) {
+                            messageContent[j-i-3] = buffer[j];
+                        }
+                        char message[recv_amount-3];
+                        sprintf(message, "%s: %s\n", displayName, messageContent);
+                        printf("%s\n", message);
+                        sendConfirmation(sockfd, &peer_addr, sequence_number);
+                        break;
+                    }
+
+                }
+            }
+            else if (type == 0xFE){
+                // Error message
+                for (uint16_t i = 0; i < num_received_datagrams; i++ ){
+                    // Check if the message has already been processed
+                    // If it has, send confirmation
+                    if (received_datagrams[i].sequenceNumber == sequence_number && received_datagrams[i].processed){
+                        sendConfirmation(sockfd, &peer_addr, sequence_number);
+                    }
+                        // If it has not, process the message and send confirmation and add it to the list
+                    else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
+                        received_datagrams[i].processed = true;
+                        received_datagrams[i].sequenceNumber = sequence_number;
+                        // Process the message
+                        char displayName[20];
+                        int i = 0;
+                        while (buffer[3+1]!= 0x00 && i < 20){
+                            displayName[i] = buffer[3+i];
+                            i++;
+                        }
+
+                        char messageContent[recv_amount-3-i];
+                        for (ssize_t j = i+3; j < recv_amount ; ++j) {
+                            messageContent[j-i-3] = buffer[j];
+                        }
+                        char message[recv_amount-3];
+                        sprintf(message, "%s: %s\n", displayName, messageContent);
+                        printf("%s\n", message);
+                        sendConfirmation(sockfd, &peer_addr, sequence_number);
+                        break;
+                    }
+                }
+            }
+        }
+        num_received_datagrams++;
+    }
+}
+
+void sendConfirmation(int sockfd, struct sockaddr_in *addr, uint16_t sequenceNumber) {
+    uint8_t confirmationMessage[3];
+    confirmationMessage[0] = 0x00;
+    confirmationMessage[1] = (sequenceNumber >> 8) & 0xFF;
+    confirmationMessage[2] = sequenceNumber & 0xFF;
+    sendto(sockfd, confirmationMessage, sizeof(confirmationMessage), 0, (struct sockaddr*)addr, sizeof(*addr));
+}
 
 
 

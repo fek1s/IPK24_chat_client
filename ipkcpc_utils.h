@@ -16,12 +16,16 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 
 #define MAX_MESSAGE_SIZE 1500
 #define MAX_COMMAND_SIZE 30
 #define MESSAGE_CONTENT 1400
 #define MAX_DATAGRAMS 100
+
+#define MAX_RETRIES 3
+#define CONFIRM_TIMEOUT_MS 250
 
 
 struct SendDatagram{
@@ -30,6 +34,13 @@ struct SendDatagram{
     uint8_t*  message;
     ssize_t messageSize;
     int retransmissions;
+    uint16_t sequenceNumber;
+};
+
+struct ReceivedDatagram{
+    uint16_t sequenceNumber;
+    ssize_t messageSize;
+    bool processed;
 };
 
 typedef struct {
@@ -39,6 +50,14 @@ typedef struct {
     uint16_t udp_timeout;
     u_int8_t  max_retransmissions;
 } ProgramArguments;
+
+
+struct ThreadArgs {
+    int sockfd;
+    struct sockaddr_in server_addr;
+    struct SendDatagram *sent_datagrams;
+    uint16_t *sequence_number;
+};
 
 /**
  * Parse program arguments
@@ -121,4 +140,12 @@ uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint1
 uint8_t *makeMsgMessage(uint16_t sequenceNumber,char *displayName ,char *message, ssize_t *messageSize);
 
 uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messageSize,char*displayName);
+
+void sendDatagram(int socketFD,struct sockaddr_in *addr, struct SendDatagram *sentDatagram);
+
+void *confirmation_checker(void *arg);
+
+void sendConfirmation(int sockfd, struct sockaddr_in *addr, uint16_t sequenceNumber);
+
+void *receiveAndPrintIncomingDataUDP(void *arg);
 #endif //IPK_PROJ1_IPKCPC_UTILS_H
