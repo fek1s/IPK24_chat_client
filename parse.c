@@ -78,8 +78,8 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
                 free(tokens);
                 return message;
             }
-            sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
-            memcpy(DisplayName,tokens[2],strlen(tokens[2])+1);
+            sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[3], tokens[2]);
+            memcpy(DisplayName,tokens[3],strlen(tokens[3])+1);
 
 
             strcpy(message, formattedMessage);
@@ -253,8 +253,9 @@ uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequ
                 return NULL;
             }
 
-            uint8_t *authMessage = makeAuthMessage(tokens[1], tokens[3], tokens[2], sequenceNumber, messageSize);
-            memcpy(DisplayName, tokens[2], strlen(tokens[2]) + 1);
+
+            uint8_t *authMessage = makeAuthMessage(tokens[1], tokens[2], tokens[3], sequenceNumber, messageSize);
+            memcpy(DisplayName, tokens[3], strlen(tokens[3]) + 1);
             for (int i = 0; i < count; i++) {
                 free(tokens[i]);
             }
@@ -300,8 +301,10 @@ uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequ
             printf("/exit - Exit the chat\n");
             return NULL;
         } else if (strcmp(command, "/bye") == 0) {
-            printf("BYE command\n");
-            strcpy(message, "/bye\n");
+            //strcpy(message, "/bye\n");
+            uint8_t *byeMessage = makeByeMessage(sequenceNumber, messageSize);
+            return byeMessage;
+
         } else {
             fprintf(stderr, "ERR: Invalid command\n");
             return NULL;

@@ -58,7 +58,8 @@ int useUDP(ProgramArguments args) {
                 continue;
             }
 
-            // Create a new datagram
+                // Create a new datagram
+
             struct SendDatagram newDatagram;
             newDatagram.message = byte;
             newDatagram.messageSize = messageSize;
@@ -134,7 +135,7 @@ uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint1
         exit(EXIT_FAILURE);
     }
     // Set the message type
-    message[0] = AUTH_MESSAGE;
+    message[0] = 0x02;
     message[1] = (sequenceNumber >> 8) & 0xFF;
     message[2] = sequenceNumber & 0xFF;
 
@@ -188,6 +189,19 @@ uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messag
     return message;
 }
 
+uint8_t *makeByeMessage(uint16_t sequenceNumber, ssize_t *messageSize) {
+    *messageSize = 3;
+    uint8_t *message = (uint8_t*)malloc(*messageSize);
+    if (message == NULL) {
+        fprintf(stderr, "ERR: Memory allocation error.\n");
+        exit(EXIT_FAILURE);
+    }
+    message[0] = BYE_MESSAGE;
+    message[1] = (sequenceNumber >> 8) & 0xFF;
+    message[2] = sequenceNumber & 0xFF;
+    return message;
+}
+
 void sendDatagram(int socketFD,struct sockaddr_in *addr, struct SendDatagram *sentDatagram) {
     sendto(socketFD, sentDatagram->message, sentDatagram->messageSize, 0, (struct sockaddr*)addr, sizeof(*addr));
     gettimeofday(&sentDatagram->sentTime, NULL); // Record the time the datagram was sent
@@ -227,7 +241,7 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                     }
                 }
             }
-            else if (type == REPLY_MESSAGE){
+            else if (type == 0x01){
                 // Reply message
                 for (uint16_t i = 0; i < num_received_datagrams; i++ ){
                     // Check if the message has already been processed
@@ -249,13 +263,11 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                         uint8_t result = buffer[3];
                         if (result == 1){
                             sprintf(message, "Success: %s", mesageContent);
-                            //printf("%s\n", message);
-                            fprintf(stderr, "%s\n", mesageContent);
+                            fprintf(stderr, "%s\n", message);
 
                         }
                         else { sprintf(message, "Failed: %s", mesageContent);
-                            //printf("%s\n", message);
-                            fprintf(stderr, "%s\n", mesageContent);
+                            fprintf(stderr, "%s\n", message);
                         }
                         sendConfirmation(sockfd, &peer_addr, sequence_number);
                         break;

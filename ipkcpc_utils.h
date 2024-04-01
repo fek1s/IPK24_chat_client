@@ -35,6 +35,7 @@
 #define JOIN_MESSAGE 0x03
 #define MSG_MESSAGE 0x04
 #define ERROR_MESSAGE 0xFE
+#define BYE_MESSAGE 0xFF
 
 
 struct SendDatagram{
@@ -241,5 +242,14 @@ void sendConfirmation(int sockfd, struct sockaddr_in *addr, uint16_t sequenceNum
  * @param arg structure with arguments for the thread
  */
 void *receiveAndPrintIncomingDataUDP(void *arg);
+
+/**
+ * Parse received message
+ * @brief Parses received message from the server
+ * @param message message
+ * @param messageSize message size
+ * @return parsed message
+ */
+uint8_t *makeByeMessage(uint16_t sequenceNumber, ssize_t *messageSize);
 
 #endif //IPK_PROJ1_IPKCPC_UTILS_H
