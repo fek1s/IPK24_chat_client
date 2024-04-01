@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <sys/time.h>
+#include <ctype.h>
 
 
 #define MAX_MESSAGE_SIZE 1500

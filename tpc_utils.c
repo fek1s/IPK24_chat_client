@@ -59,6 +59,9 @@ int useTCP(ProgramArguments args) {
     // Read input from the user
     while (1) {
         ssize_t charCount = getline(&line, &lineSize, stdin);
+        if (charCount == 1) {
+            continue;
+        }
         char* message = parseInputMessage(line, &charCount);
         if (strcmp(message, "/CONTINUE") == 0) {
             continue;

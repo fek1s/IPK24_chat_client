@@ -249,11 +249,13 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                         uint8_t result = buffer[3];
                         if (result == 1){
                             sprintf(message, "Success: %s", mesageContent);
-                            printf("%s\n", message);
+                            //printf("%s\n", message);
+                            fprintf(stderr, "%s\n", mesageContent);
 
                         }
                         else { sprintf(message, "Failed: %s", mesageContent);
-                            printf("%s\n", message);
+                            //printf("%s\n", message);
+                            fprintf(stderr, "%s\n", mesageContent);
                         }
                         sendConfirmation(sockfd, &peer_addr, sequence_number);
                         break;

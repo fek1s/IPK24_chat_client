@@ -174,7 +174,10 @@ char *parseReceivedMessage(char *message, ssize_t *messageSize){
     }
     int count;
     char **tokens = split(message, " ", &count);
-
+    //Convert token[0] to uppercase
+    for (int i = 0; tokens[0][i] != '\0'; i++) {
+        tokens[0][i] = toupper(tokens[0][i]);
+    }
 
     if (strcmp(tokens[0], "MSG") == 0){
         char formattedMessage[MAX_MESSAGE_SIZE];
@@ -206,13 +209,13 @@ char *parseReceivedMessage(char *message, ssize_t *messageSize){
         }
 
         if (strcmp(tokens[1], "OK") == 0){
-            printf("Success: %s\n", messageCopy);
+            fprintf(stderr,"Success: %s\n", messageCopy);
             strcpy(message, "0");
             return message;
         }
         else {
             // Failure
-            printf("Failure: %s\n", messageCopy);
+            fprintf(stderr,"Failure: %s\n", messageCopy);
             strcpy(message, "0");
             return message;
         }
