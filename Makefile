@@ -1,8 +1,9 @@
 EXE=ipkcpc
+BIN= ipk24chat-client
 CFLAGS= -std=gnu99 -Wall -Wextra -Werror -pedantic
 CC=gcc
 
-ipk24chat-client: $(EXE).o ipkcpc_utils.o parse.o
+ipk24chat-client: $(EXE).o parse.o udp_utils.o tpc_utils.o
 	@echo "Liking objects to executable"
 	$(CC) $(CFLAGS) $^ -o $@
 
@@ -11,4 +12,4 @@ $(EXE).o: $(EXE).c tpc_utils.c parse.c udp_utils.c
 	$(CC) $(CFLAGS) -c $^
 
 clean:
-	rm ipkcpc_utils.o parse.o ipkcpc.o ipk24chat-client
+	rm -f *.o $(BIN)

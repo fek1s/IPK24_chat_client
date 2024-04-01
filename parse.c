@@ -5,8 +5,7 @@
  * message and format it to be displayed to the user
  */
 
-
-#include "parse.h"
+#include "ipkcpc_utils.h"
 
 char DisplayName[MAX_DISPLAY_NAME];
 

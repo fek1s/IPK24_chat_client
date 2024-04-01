@@ -2,3 +2,5 @@
 /ipkcpc_utils.o
 /ipk24chat-client
 /parse.o
+/udp_utils.o
+/tpc_utils.o

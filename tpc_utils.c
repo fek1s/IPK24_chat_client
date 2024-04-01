@@ -16,7 +16,7 @@ void *receiveAndPrintIncomingData(void *socketFD){
         char buffer[MAX_MESSAGE_SIZE];
         ssize_t recvAmount = recv(socket, buffer, sizeof(buffer), 0);
         if (recvAmount == 0){
-            fprintf(stdout, "Server disconnected\n")
+            fprintf(stdout, "Server disconnected\n");
             break;
         }
         else if (recvAmount == -1){
