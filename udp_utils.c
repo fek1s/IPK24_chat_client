@@ -9,13 +9,13 @@ int useUDP(ProgramArguments args) {
     struct SendDatagram sendDatagrams[MAX_DATAGRAMS];
 
     if (socketFD == -1) {
-        fprintf(stderr, "Failed to create socket\n");
+        fprintf(stderr, "ERR:Failed to create socket\n");
         return -1;
     }
 
     struct sockaddr_in addr = resolve_host(args.server_ip, args.port);
-    printf("Connected to server\n");
-    printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
+    //printf("Connected to server\n");
+    //printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
 
     // Create thread for receiving data
     uint16_t sequenceNumber = 0;
@@ -40,11 +40,7 @@ int useUDP(ProgramArguments args) {
             fgets(buffer, sizeof(buffer), stdin);
             ssize_t messageSize = strlen(buffer);
 
-            // Parse the input message TODO REMOVE
-            printf("Message: %s\n", buffer);
-            printf("Size of buffer: %lo\n", strlen(buffer));
             if (strlen(buffer) == 1) {
-                fprintf(stderr, "No message entered\n");
                 continue;
             }
             if (strcmp(buffer, "/bye\n") == 0) {
@@ -57,10 +53,8 @@ int useUDP(ProgramArguments args) {
             // Parse the input message
             uint8_t *byte = parseInputMessageUDP(buffer, &messageSize, sequenceNumber);
 
-            // TODO REMOVE
-            printf("Mesaage size: %lo\n", messageSize);
             if (byte == NULL) {
-                fprintf(stderr, "Failed to parse input message\n");
+                fprintf(stderr, "ERR: Failed to parse input message\n");
                 continue;
             }
 
@@ -85,7 +79,7 @@ int useUDP(ProgramArguments args) {
                 sendDatagrams[free_slot] = newDatagram;
                 sendDatagram(socketFD, &addr, &sendDatagrams[free_slot]);
             } else {
-                fprintf(stderr, "No free slot for new datagram\n");
+                fprintf(stderr, "ERR: No free slot for new datagram\n");
                 return -1;
             }
             sequenceNumber++;
@@ -111,7 +105,7 @@ uint8_t *makeMsgMessage(uint16_t sequenceNumber,char *displayName ,char *message
     *messageSize = strlen(displayName) + strlen(message) + 5;
     uint8_t *msgMessage = (uint8_t*)malloc(*messageSize);
     if (msgMessage == NULL) {
-        fprintf(stderr, "Memory allocation error.\n");
+        fprintf(stderr, "ERR: Memory allocation error.\n");
         exit(EXIT_FAILURE);
     }
     msgMessage[0] = MSG_MESSAGE;
@@ -136,7 +130,7 @@ uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint1
     *messageSize = strlen(username) + strlen(password) + strlen(displayName) + 6;
     uint8_t *message = (uint8_t*)malloc(*messageSize);
     if (message == NULL) {
-        fprintf(stderr, "Memory allocation error.\n");
+        fprintf(stderr, "ERR: Memory allocation error.\n");
         exit(EXIT_FAILURE);
     }
     // Set the message type
@@ -171,7 +165,7 @@ uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messag
     *messageSize = strlen(channel) + strlen(displayName) + 5;
     uint8_t *message = (uint8_t*)malloc(*messageSize);
     if (message == NULL) {
-        fprintf(stderr, "Memory allocation error.\n");
+        fprintf(stderr, "ERR: Memory allocation error.\n");
         exit(EXIT_FAILURE);
     }
     // Set the message type
@@ -216,23 +210,16 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
         struct sockaddr_in peer_addr;
         socklen_t peer_addr_len = sizeof(peer_addr);
         ssize_t recv_amount = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&peer_addr, &peer_addr_len);
-        printf("Received %ld bytes\n", recv_amount);
 
         if (recv_amount > 0){
             uint8_t type = buffer[0];
-            printf("Type: %d\n", type);
             uint16_t sequence_number = (buffer[1] << 8) | buffer[2];
-            // TODO REMOVE
-            //for (ssize_t i = 0; i < recv_amount; i++){
-            //    printf("%c,[%lo],", buffer[i], i);
-            //}
             if (type == CONFIRMATION_MESSAGE){
                 // Confirmation message
                 for (uint16_t i = 0; i < *thread_args->sequence_number; i++){
                     if (sent_datagrams[i].message != NULL && !sent_datagrams[i].confirmed){
                         if (sequence_number == sent_datagrams[i].sequenceNumber){
                             sent_datagrams[i].confirmed = true;
-                            printf("Message %d confirmed\n", i);
                             free(sent_datagrams[i].message);
                             sent_datagrams[i].message = NULL;
                             break;
@@ -242,13 +229,11 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
             }
             else if (type == REPLY_MESSAGE){
                 // Reply message
-                printf("Reply message\n");
                 for (uint16_t i = 0; i < num_received_datagrams; i++ ){
                     // Check if the message has already been processed
                     // If it has, send confirmation
                     if (received_datagrams[i].sequenceNumber == sequence_number && received_datagrams[i].processed){
                         sendConfirmation(sockfd, &peer_addr, sequence_number);
-                        printf("Processed already\n");
                     }
                         // If it has not, process the message and send confirmation and add it to the list
                     else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
@@ -374,7 +359,7 @@ void *confirmation_checker(void *arg) {
                 terminate = true;
                 return NULL;
             } else if (sent_datagrams[i].byeMessage && !sent_datagrams[i].confirmed && sent_datagrams[i].retransmissions >= thread_args->max_retransmissions) {
-                fprintf(stderr, "Failed to confirm bye message\n");
+                fprintf(stderr, "ERR: Failed to confirm bye message\n");
                 terminate = true;
                 return NULL;
 
@@ -386,6 +371,7 @@ void *confirmation_checker(void *arg) {
                     if (sent_datagrams[i].retransmissions < thread_args->max_retransmissions) {
                         // Retransmit message
                         sendDatagram(sockfd, &server_addr, &sent_datagrams[i]);
+                        //TODO REMOVE
                         printf("Resending message %d (retry %d)\n", i, sent_datagrams[i].retransmissions + 1);
                         sent_datagrams[i].retransmissions++;
                     }

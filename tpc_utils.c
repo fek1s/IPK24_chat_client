@@ -16,11 +16,11 @@ void *receiveAndPrintIncomingData(void *socketFD){
         char buffer[MAX_MESSAGE_SIZE];
         ssize_t recvAmount = recv(socket, buffer, sizeof(buffer), 0);
         if (recvAmount == 0){
-            fprintf(stdout, "Server disconnected\n");
+            fprintf(stdout, "ERR: Server disconnected\n");
             break;
         }
         else if (recvAmount == -1){
-            fprintf(stderr, "Failed to receive data\n");
+            fprintf(stderr, "ERR: Failed to receive data\n");
             break;
         }
         else {
@@ -38,7 +38,7 @@ void *receiveAndPrintIncomingData(void *socketFD){
 int useTCP(ProgramArguments args) {
     int socketFD = createTcpSocket();
     if (socketFD == -1) {
-        fprintf(stderr, "Failed to create socket\n");
+        fprintf(stderr, "ERR: Failed to create socket\n");
         return -1;
     }
 
@@ -47,12 +47,8 @@ int useTCP(ProgramArguments args) {
 
     // Connect to the server
     if (connect(socketFD, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-        fprintf(stderr, "Failed to connect to server\n");
         return -1;
     }
-    printf("Connected to server\n");
-    printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
-
 
     // Create thread for receiving data
     pthread_t tid;
