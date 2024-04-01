@@ -70,12 +70,16 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
 
             int count;
             char **tokens = split(message, " ", &count);
-//            for (int i = 0; i < count; i++){
-//                printf("Token %d: %s\n", i, tokens[i]);
-//            }
+
             if (count != 4){
                 printf("Invalid number of arguments\n");
                 strcpy(message, "/CONTINUE");
+
+                // Free the memory allocated for tokens
+                for (int i = 0; i < count; i++) {
+                    free(tokens[i]);
+                }
+                free(tokens);
                 return message;
             }
             sprintf(formattedMessage, "AUTH %s AS %s USING %s\r\n", tokens[1], tokens[2], tokens[3]);
@@ -103,6 +107,11 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
             if (count != 2){
                 printf("Invalid number of arguments\n");
                 strcpy(message, "/CONTINUE");
+                // Free the memory allocated for tokens
+                for (int i = 0; i < count; i++) {
+                    free(tokens[i]);
+                }
+                free(tokens);
                 return message;
             }
 
@@ -119,7 +128,7 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
             return message;
         }
         else if (strcmp(command, "/rename") == 0){
-            // @DEBUG
+            // @DEBUG TODO remove
             printf("RENAME command\n");
 
             int count;
@@ -133,7 +142,7 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
             }
 
             memcpy(DisplayName,tokens[1],strlen(tokens[1])+1);
-            // @DEBUG
+            // @DEBUG TODO remove
             printf("NEW Display name: %s\n", DisplayName);
 
             // Free the memory allocated for tokens
@@ -156,14 +165,15 @@ char* parseInputMessage(char *message,ssize_t *messageSize){
             strcpy(message, "/CONTINUE");
             return message;
         }
-        else if (strcmp(command, "/exit") == 0){
-            // @DEBUG
-            printf("EXIT command\n");
-            strcpy(message, "/exit\n");
+        else if (strcmp(command, "/bye") == 0){
+            // @DEBUG TODO remove
+            printf("BYE command\n");
+            sprintf(formattedMessage, "BYE\r\n");
+            strcpy(message, formattedMessage);
             return message;
         }
         else {
-            printf("Invalid command\n");
+            fprintf(stderr, "Invalid command\n");
             strcpy(message, "/CONTINUE");
             return message;
         }

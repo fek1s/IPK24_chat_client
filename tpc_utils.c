@@ -68,11 +68,11 @@ int useTCP(ProgramArguments args) {
             continue;
         }
         if (strlen(message) > 0) {
-            if (strcmp(message, "/exit\n") == 0) {
+            send(socketFD, message, strlen(message), 0);
+            if (strcmp(message, "BYE\r\n") == 0) {
                 pthread_cancel(tid);
                 break;
             }
-            send(socketFD, message, strlen(message), 0);
         }
     }
 

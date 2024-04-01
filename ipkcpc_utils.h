@@ -41,6 +41,7 @@
 
 struct SendDatagram{
     bool confirmed;
+    bool byeMessage;
     struct timeval sentTime;
     uint8_t*  message;
     ssize_t messageSize;
@@ -68,7 +69,11 @@ struct ThreadArgs {
     struct sockaddr_in server_addr;
     struct SendDatagram *sent_datagrams;
     uint16_t *sequence_number;
+    uint16_t udp_timeout;
+    uint8_t max_retransmissions;
 };
+
+bool terminate = false;
 
 /**
  * Parse arguments

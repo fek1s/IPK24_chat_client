@@ -17,15 +17,19 @@ int useUDP(ProgramArguments args) {
     uint16_t sequenceNumber = 0;
     uint16_t *seqNum = &sequenceNumber;
     pthread_t tid_receive;
-    struct ThreadArgs thread_args_receive = {socketFD, addr, sendDatagrams, seqNum};
-    pthread_create(&tid_receive, NULL, receiveAndPrintIncomingDataUDP, (void*)&thread_args_receive);
+    struct ThreadArgs thread_args_receive = {socketFD, addr,
+            sendDatagrams, seqNum, args.udp_timeout, args.max_retransmissions};
+
+    pthread_create(&tid_receive, NULL,
+                   receiveAndPrintIncomingDataUDP, (void*)&thread_args_receive);
 
     // Create thread for checking confirmations
     pthread_t tid;
-    struct ThreadArgs thread_args = {socketFD, addr, sendDatagrams,seqNum};
+    struct ThreadArgs thread_args = {socketFD, addr, sendDatagrams,
+            seqNum, args.udp_timeout, args.max_retransmissions};
     pthread_create(&tid, NULL, confirmation_checker, (void*)&thread_args);
 
-    while(1){
+    while(!terminate){
         char buffer[MAX_MESSAGE_SIZE];
 
         fgets(buffer, sizeof(buffer), stdin);
@@ -38,12 +42,12 @@ int useUDP(ProgramArguments args) {
             fprintf(stderr, "No message entered\n");
             continue;
         }
-
-        if (strcmp(buffer, "/exit\n") == 0) {
-            pthread_cancel(tid);
-            pthread_cancel(tid_receive);
-            break;
-
+        bool isBye = false;
+        if (strcmp(buffer, "/bye\n") == 0) {
+            //pthread_cancel(tid);
+            //pthread_cancel(tid_receive);
+            //break;
+            isBye = true;
         }
 
         // Parse the input message
@@ -63,6 +67,7 @@ int useUDP(ProgramArguments args) {
         newDatagram.confirmed = false;
         newDatagram.retransmissions = 0;
         newDatagram.sequenceNumber = sequenceNumber;
+        newDatagram.byeMessage = isBye;
 
         // Find an empty slot in the array of datagrams
         int free_slot = -1;
@@ -89,7 +94,6 @@ int useUDP(ProgramArguments args) {
         }
     }
 
-    //free(buffer);
     close(socketFD);
     return 0;
 }
@@ -336,7 +340,12 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
             }
         }
         num_received_datagrams++;
+        if (recv_amount == -1){
+            fprintf(stderr, "Failed to receive data\n");
+            break;
+        }
     }
+    return NULL;
 }
 
 void *confirmation_checker(void *arg) {
@@ -346,26 +355,31 @@ void *confirmation_checker(void *arg) {
     struct SendDatagram *sent_datagrams = thread_args->sent_datagrams;
 
 
+
     struct timeval current_time;
 
     while (1) {
         gettimeofday(&current_time, NULL);
 
-        // TODO PASS TIMEOUT AS ARGUMENT TO THE FUNCTION && MAX_RETRIES
+        // TODO PASS TIMEOUT AS ARGUMENT TO THE FUNCTION && MAX_RETRIES CHECK if works
 
         // Check confirmations for each sent datagram
         for (uint16_t i = 0; i < *thread_args->sequence_number; ++i) {
             if (!sent_datagrams[i].confirmed && sent_datagrams[i].message != NULL) {
                 long elapsed_time = (current_time.tv_sec - sent_datagrams[i].sentTime.tv_sec) * 1000 +
                                     (current_time.tv_usec - sent_datagrams[i].sentTime.tv_usec) / 1000;
-                if (elapsed_time >= CONFIRM_TIMEOUT_MS) {
-                    if (sent_datagrams[i].retransmissions < MAX_RETRIES) {
+                if (elapsed_time >= thread_args->udp_timeout) {
+                    if (sent_datagrams[i].retransmissions < thread_args->max_retransmissions) {
                         // Retransmit message
                         sendDatagram(sockfd, &server_addr, &sent_datagrams[i]);
                         printf("Resending message %d (retry %d)\n", i, sent_datagrams[i].retransmissions + 1);
                         sent_datagrams[i].retransmissions++;
                     }
                 }
+            } else if (sent_datagrams[i].confirmed && sent_datagrams[i].byeMessage) {
+                // If the message is confirmed and it is a bye message, close the socket and terminate the program
+                terminate = true;
+                return NULL;
             }
         }
 
