@@ -310,7 +310,6 @@ uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequ
             return NULL;
         }
     }
-    printf("MSG FROM %s IS %s \r\n", DisplayName, message);
     return makeMsgMessage(sequenceNumber, DisplayName, message, messageSize);
 }
 

@@ -9,6 +9,7 @@
 3. [**Implementovaná funkcionalita**](#implementovaná-funkcionalita)
 4. [**Testování**](#testování)
 5. [**Dodatečná funkcionalita**](#dodatečná-funkcionalita)
+6. [**Zdroje**](#zdroje)
 
 ## Úvod
 
@@ -28,6 +29,12 @@ Klient-server architektura je základním konceptem, ve kterém klienti požaduj
 - **UDP (User Datagram Protocol):** Protokol poskytující neřízenou a nespolehlivou komunikaci mezi klientem a serverem. Data jsou posílána bez záruky doručení nebo zachování pořadí.
 
 ## Implementovaná funkcionalita
+- Při používání transportního protokolu **TCP** je klient schopen se připojit k serveru, autentizovat se, přejmenovat uživatele, připojit se k kanálu a posílat zprávy.
+- Při používání transportního protokolu **UDP** je nutná implementace spolehlivého přenosu zpráv, který zajišťuje doručení zpráv a potvrzení o přijetí. 
+Pro tyto učely byli implementovány funkce pro přijímání a odesílaní potvrzení.
+- Pokud není na zpravu přijato porvrzení, klient zprávu znovu odešle tolikrát, jak je specifikováno parametrem `-r` (defaultně 3x).
+- Klient je schopen zpracovávat zprávy od serveru a reagovat na ně podle specifikace protokolu IPK24-CHAT.
+- Klient je schopen zpracovávat argumenty příkazové řádky a zprávy od uživatele.
 
 ### Struktura programu
 Program je rozdělen do několika souborů:
@@ -62,7 +69,7 @@ do funkcí `useTCP` nebo `useUDP`.
 - Testování bylo provedeno s různými zprávami a bylo ověřeno, že server přijímá zprávy od klienta.
 #### Kratká demonstrace základních příkazů:
 ##### /auth
-- Napřiklad pro input `/auth user1 JakubF secret` byl výstup `AUTH user1 AS JakubF USING secret`.
+- Napřiklad pro input `/auth user1 secret JakubF` byl výstup `AUTH user1 AS JakubF USING secret`.
 ##### /join 
 - Pro input `/join ch1`  `JOIN ch1 AS JakubF`.
 ##### /rename
@@ -77,7 +84,7 @@ do funkcí `useTCP` nebo `useUDP`.
 - Nyní na poslané zprávy server reaguje a zobrazuje je v terminálu.
 - Testování bylo provedeno s různými zprávami a bylo ověřeno, že server přijímá zprávy od klienta.
 ##### /auth 
-- Pro input `/auth user1 JakubF secret` byl výstup `Success: Hi, user1! Successfully authenticated you as JakubF.` což
+- Pro input `/auth user1 secret JakubF` byl výstup `Success: Hi, user1! Successfully authenticated you as JakubF.` což
 je odpověď serveru konkrétně zpráva typu REPLY která obsahuje informaci o úspěšném přihlášení.
 
 ##### /join
@@ -89,12 +96,61 @@ je odpověď serveru konkrétně zpráva typu REPLY která obsahuje informaci o 
 joined you NOWHERE! This server has only one channel.` což ukazuje uspěšné přejmenování uživatele a následné připojení
 k jinem kanálu.
 
+##### /bye 
+- Pro input `/bye` je na server odeslána zpráva typu BYE
 
+### Testování funkcionality UDP (Lokální testování)
 
+- Pro lokalní testování UDP byl nejprve použit netcat konkétně `nc -4 -u -l -v 127.0.0.1 4567` naslouchající na portu 4567.
 
+- Klient byl spouštěn s následujícími argumenty: `./ipk24chat-client -t udp -s 127.0.0.1 -p 4567`.
 
+- Nasledně se přešlo na lokalní [UDP Server](https://github.com/okurka12/ipk_proj1_livestream/blob/main/ipk_server.py)
 
+- Nyní je možné posílat zprávy z klienta na lokalní server.
+- Spouštění serveru `python3.10 ipk_server.py`
+- Klient byl spouštěn s následujícími argumenty: `./ipk24chat-client -t udp -s 127.0.0.1 -p 4567`.
+
+##### /auth
+- Napřiklad pro input `/auth user1 secret JakubF` je odelsána zpráva:
+- `[|01|10|user1.JakubF.secret.]` kde `.` ke NULL byte. a první tři byty jsou (zkráceně) `01` což je kód pro AUTH. 
+a `10` je Sekvenční číslo zprávy.
+- Server odpoví zprávou Confirm `|0|10|` kde Sekvenční čísla zpráv se shodují.
+- Dále je zpráva `|1|X|` kde `1` je kód pro REPLY a `X` je sekvenční číslo zprávy.
+- Klien odešle zprávu `|0|X|` kde `0` je kód pro CONFIRM a `X` je sekvenční číslo zprávy.
+- Tato sekvence zpráv znazornuje úspěšné přihlášení uživatele.
+##### /join
+- Pro input `/join ch1` je odelsána zpráva:
+- `[|3|100|ch1.JakubF.]` kde `.` ke NULL byte. a první tři byty jsou (zkráceně) `03` což je kód pro JOIN.
+- Server odpoví zprávou Confirm `|0|100|` kde Sekvenční čísla zpráv se shodují.
+- Dále je zpráva `|1|X|` kde `1` je kód pro REPLY a `X` je sekvenční číslo zprávy.
+- Klien odešle zprávu `|0|X|` kde `0` je kód pro CONFIRM a `X` je sekvenční číslo zprávy.
+
+##### /rename
+- Pro input `/rename NotJakubF` a nasledně `/join ch2` je odelsána zpráva:
+- `[|3|100|NotJakubF.]` kde `.` ke NULL byte. a první tři byty jsou (zkráceně) `03` což je kód pro RENAME.
+- Server odpoví zprávou Confirm `|0|100|` kde Sekvenční čísla zpráv se shodují.
+- Dále je zpráva `|1|X|` kde `1` je kód pro REPLY a `X` je sekvenční číslo zprávy.
+- Klien odešle zprávu `|0|X|` kde `0` je kód pro CONFIRM a `X` je sekvenční číslo zprávy.
+- Tato sekvence zpráv znazornuje úspěšné přejmenování uživatele a následné připojení k jinem kanálu.
+
+##### /bye
+- Pro input `/bye` je odelsána zpráva:
+- `[|FF|xx|NotJakubF.]` kde `.` ke NULL byte. a první byte je  `FF` což je kód pro BYE.
+- Server odpoví zprávou Confirm `|0|xx|` kde Sekvenční čísla zpráv se shodují.
+
+- Pokud na zpravu bye server neodpoví, klient zpravu odešle znovu a to tolika krát 
+jak je specifikováno parametrem `-r` (defaultně 3x).
+- Toto bylo otestováno tak že byl klient spuštěn takzvaně "na slepo" tedy bez serveru a bylo ověřeno že klient
+odesílá zprávu znovu. 
 
 ## Dodatečná funkcionalita
+- V tomto bodě bych chtěl zmínit pouze příkaz `/bye` který posíla zprávu typu BYE na server a ukončuje spojení.
 
-... (informace o dodatečné funkcionlitě)
+## Zdroje  
+- [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/html/)
+- [Markdown](https://www.markdownguide.org/cheat-sheet/)
+- [Wireshark](https://www.wireshark.org/)
+- [Makefile writing](https://devhints.io/makefile)
+- [Python UDP Server](https://github.com/okurka12/ipk_proj1_livestream/tree/main)
+- [Licence](https://choosealicense.com/licenses/)
