@@ -39,17 +39,14 @@ void *receiveAndPrintIncomingData(void *socketFD){
         char buffer[MAX_MESSAGE_SIZE];
         ssize_t recvAmount = recv(socket, buffer, sizeof(buffer), 0);
         if (recvAmount == 0){
-            printf("Server disconnected\n");
+            fprintf(stdout, "Server disconnected\n")
             break;
         }
         else if (recvAmount == -1){
-            printf("Failed to receive data\n");
+            fprintf(stderr, "Failed to receive data\n");
             break;
         }
         else {
-            // @DEBUG
-            //printf("BUFFER: %s", buffer);
-
             char *message = parseReceivedMessage(buffer, &recvAmount);
             if (strcmp(message, "0") == 0){
                 continue;
@@ -57,19 +54,14 @@ void *receiveAndPrintIncomingData(void *socketFD){
             fprintf(stdout, "%s", message);
         }
     }
-    //free(socketFDPtr);
 
     return NULL;
 }
 
 void getCommand(char *message,char* command){
     int i = 0;
-    // DEBUG
-    //printf("Message: %s\n", message);
     while (message[i] != ' ' && message[i] != '\n' && message[i] != '\0'){
         command[i] = message[i];
-        // Debug
-        //printf("Command: %c\n", command[i]);
         i++;
     }
     command[i] = '\0';
@@ -130,8 +122,10 @@ int useTCP(ProgramArguments args) {
         return -1;
     }
 
+    // Resolve the server address
     struct sockaddr_in addr = resolve_host(args.server_ip, args.port);
 
+    // Connect to the server
     if (connect(socketFD, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         fprintf(stderr, "Failed to connect to server\n");
         return -1;
@@ -146,6 +140,7 @@ int useTCP(ProgramArguments args) {
 
     char *line = NULL;
     size_t lineSize = 0;
+    // Read input from the user
     while (1) {
         ssize_t charCount = getline(&line, &lineSize, stdin);
         char* message = parseInputMessage(line, &charCount);
@@ -169,10 +164,6 @@ int useTCP(ProgramArguments args) {
 int useUDP(ProgramArguments args) {
     int socketFD = createUdpSocket();
     struct SendDatagram sendDatagrams[MAX_DATAGRAMS];
-//    for (int i = 0; i < MAX_DATAGRAMS; i++) {
-//        sendDatagrams[i].confirmed = false;
-//        sendDatagrams[i].message = NULL;
-//    }
 
     if (socketFD == -1) {
         fprintf(stderr, "Failed to create socket\n");
@@ -184,33 +175,30 @@ int useUDP(ProgramArguments args) {
     printf("Server address: %s\n", inet_ntoa(addr.sin_addr));
 
     // Create thread for receiving data
-    //TODO
     uint16_t sequenceNumber = 0;
     uint16_t *seqNum = &sequenceNumber;
     pthread_t tid_receive;
     struct ThreadArgs thread_args_receive = {socketFD, addr, sendDatagrams, seqNum};
     pthread_create(&tid_receive, NULL, receiveAndPrintIncomingDataUDP, (void*)&thread_args_receive);
 
-
-    //check_confirmations(socketFD, addr.sin_addr.s_addr, sendDatagrams);
+    // Create thread for checking confirmations
     pthread_t tid;
     struct ThreadArgs thread_args = {socketFD, addr, sendDatagrams,seqNum};
     pthread_create(&tid, NULL, confirmation_checker, (void*)&thread_args);
 
     while(1){
         char buffer[MAX_MESSAGE_SIZE];
-        //TODO
 
         fgets(buffer, sizeof(buffer), stdin);
         ssize_t messageSize = strlen(buffer);
-        // Parse the input message TODO
+
+        // Parse the input message TODO REMOVE
         printf("Message: %s\n", buffer);
         printf("Size of buffer: %lo\n", strlen(buffer));
         if (strlen(buffer) == 1) {
             fprintf(stderr, "No message entered\n");
             continue;
         }
-
 
         if (strcmp(buffer, "/exit\n") == 0) {
             pthread_cancel(tid);
@@ -219,25 +207,23 @@ int useUDP(ProgramArguments args) {
 
         }
 
-        // parse
+        // Parse the input message
         uint8_t *byte = parseInputMessageUDP(buffer, &messageSize, sequenceNumber);
+
+        // TODO REMOVE
         printf("Mesaage size: %lo\n", messageSize);
         if (byte == NULL) {
             fprintf(stderr, "Failed to parse input message\n");
             continue;
         }
 
-        //sendto(socketFD, byte, messageSize, 0, (struct sockaddr*)&addr, sizeof(addr));
-
+        // Create a new datagram
         struct SendDatagram newDatagram;
         newDatagram.message = byte;
         newDatagram.messageSize = messageSize;
         newDatagram.confirmed = false;
         newDatagram.retransmissions = 0;
         newDatagram.sequenceNumber = sequenceNumber;
-
-        // REMOVE
-        //sendto(socketFD, newDatagram.message, newDatagram.messageSize, 0, (struct sockaddr*)&addr, sizeof(addr));
 
         // Find an empty slot in the array of datagrams
         int free_slot = -1;
@@ -249,9 +235,7 @@ int useUDP(ProgramArguments args) {
         }
         if (free_slot != -1){
             sendDatagrams[free_slot] = newDatagram;
-            //TODO
             sendDatagram(socketFD, &addr, &sendDatagrams[free_slot]);
-            //printf("Message sent: %s\n", sendDatagrams[free_slot].message);
         }
         else {
             fprintf(stderr, "No free slot for new datagram\n");
@@ -278,7 +262,7 @@ uint8_t *makeMsgMessage(uint16_t sequenceNumber,char *displayName ,char *message
         fprintf(stderr, "Memory allocation error.\n");
         exit(EXIT_FAILURE);
     }
-    msgMessage[0] = 0x04;
+    msgMessage[0] = MSG_MESSAGE;
     msgMessage[1] = (sequenceNumber >> 8) & 0xFF;
     msgMessage[2] = sequenceNumber & 0xFF;
 
@@ -303,14 +287,17 @@ uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint1
         fprintf(stderr, "Memory allocation error.\n");
         exit(EXIT_FAILURE);
     }
-    message[0] = 0x02;
+    // Set the message type
+    message[0] = AUTH_MESSAGE;
     message[1] = (sequenceNumber >> 8) & 0xFF;
     message[2] = sequenceNumber & 0xFF;
 
+    // Set the result
     int N= strlen(username);
     for (int i = 0; i < N; i++){
         message[i + 3] = username[i];
     }
+    // Set the null terminator
     message[strlen(username) + 3] = 0x00;
 
     N = strlen(displayName);
@@ -325,12 +312,6 @@ uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint1
     }
     message[strlen(password) + 5 + strlen(username) + strlen(displayName)] = 0x00;
 
-    // Debug
-    printf("Username: %s\n", username);
-    printf("Password: %s\n", password);
-    printf("Display name: %s\n", displayName);
-    printf("Sequence number: %d\n", sequenceNumber);
-
     return message;
 }
 
@@ -341,7 +322,8 @@ uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messag
         fprintf(stderr, "Memory allocation error.\n");
         exit(EXIT_FAILURE);
     }
-    message[0] = 0x03;
+    // Set the message type
+    message[0] = JOIN_MESSAGE;
     message[1] = (sequenceNumber >> 8) & 0xFF;
     message[2] = sequenceNumber & 0xFF;
 
@@ -349,6 +331,7 @@ uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messag
     for (int i = 0; i < N; i++){
         message[i + 3] = channel[i];
     }
+    // Set the null terminator
     message[strlen(channel) + 3] = 0x00;
 
     N = strlen(displayName);
@@ -375,6 +358,8 @@ void *confirmation_checker(void *arg) {
 
     while (1) {
         gettimeofday(&current_time, NULL);
+
+        // TODO PASS TIMEOUT AS ARGUMENT TO THE FUNCTION && MAX_RETRIES
 
         // Check confirmations for each sent datagram
         for (uint16_t i = 0; i < *thread_args->sequence_number; ++i) {
@@ -419,7 +404,11 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
             uint8_t type = buffer[0];
             printf("Type: %d\n", type);
             uint16_t sequence_number = (buffer[1] << 8) | buffer[2];
-            if (type == 0x00){
+            // TODO REMOVE
+            //for (ssize_t i = 0; i < recv_amount; i++){
+            //    printf("%c,[%lo],", buffer[i], i);
+            //}
+            if (type == CONFIRMATION_MESSAGE){
                 // Confirmation message
                 for (uint16_t i = 0; i < *thread_args->sequence_number; i++){
                     if (sent_datagrams[i].message != NULL && !sent_datagrams[i].confirmed){
@@ -433,7 +422,7 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                     }
                 }
             }
-            else if (type == 0x01){
+            else if (type == REPLY_MESSAGE){
                 // Reply message
                 printf("Reply message\n");
                 for (uint16_t i = 0; i < num_received_datagrams; i++ ){
@@ -447,21 +436,21 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                     else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
                         received_datagrams[i].processed = true;
                         received_datagrams[i].sequenceNumber = sequence_number;
+
                         // Process the message
                         char mesageContent[recv_amount-6];
                         for (ssize_t i = 6; i < recv_amount; i++){
-                        //printf("%c", buffer[i]);
                             mesageContent[i-6] = buffer[i];
                         }
                         char message[recv_amount-6];
                         uint8_t result = buffer[3];
                         if (result == 1){
                             sprintf(message, "Success: %s", mesageContent);
-                            printf("Message: %s\n", message);
+                            printf("%s\n", message);
 
                         }
                         else { sprintf(message, "Failed: %s", mesageContent);
-                        printf("%s\n", message);
+                            printf("%s\n", message);
                         }
                         sendConfirmation(sockfd, &peer_addr, sequence_number);
                         break;
@@ -469,7 +458,7 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
 
                 }
             }
-            else if (type == 0x04){
+            else if (type == MSG_MESSAGE){
                 // MSG message
                 for (uint16_t i = 0; i < num_received_datagrams; i++ ){
                     // Check if the message has already been processed
@@ -481,28 +470,31 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                     else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
                         received_datagrams[i].processed = true;
                         received_datagrams[i].sequenceNumber = sequence_number;
-                        // Process the message
-                        char displayName[20];
-                        int i = 0;
-                        while (buffer[3+1]!= 0x00 && i < 20){
-                            displayName[i] = buffer[3+i];
+                        // Process the Display name
+                        int i = 3;
+                        while (buffer[i]!= 0x00 && i < MAX_DISPLAY_NAME){
+                            printf("%c", buffer[i]);
                             i++;
                         }
+                        printf(": ");
 
-                        char messageContent[recv_amount-3-i];
-                        for (ssize_t j = i+3; j < recv_amount ; ++j) {
-                            messageContent[j-i-3] = buffer[j];
+                        // Process the message content
+                        ssize_t j = i;
+                        while (j < recv_amount-1){
+                            printf("%c", buffer[j]);
+                            j++;
+
                         }
-                        char message[recv_amount-3];
-                        sprintf(message, "%s: %s\n", displayName, messageContent);
-                        printf("%s\n", message);
+                        printf("\n");
+
+                        // Send confirmation
                         sendConfirmation(sockfd, &peer_addr, sequence_number);
                         break;
                     }
 
                 }
             }
-            else if (type == 0xFE){
+            else if (type == ERROR_MESSAGE){
                 // Error message
                 for (uint16_t i = 0; i < num_received_datagrams; i++ ){
                     // Check if the message has already been processed
@@ -514,21 +506,24 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
                     else if (received_datagrams[i].sequenceNumber == 0 && !received_datagrams[i].processed){
                         received_datagrams[i].processed = true;
                         received_datagrams[i].sequenceNumber = sequence_number;
-                        // Process the message
-                        char displayName[20];
-                        int i = 0;
-                        while (buffer[3+1]!= 0x00 && i < 20){
-                            displayName[i] = buffer[3+i];
+                        // Process the Display name
+                        int i = 3;
+                        while (buffer[i]!= 0x00 && i < MAX_DISPLAY_NAME){
+                            printf("%c", buffer[i]);
                             i++;
                         }
+                        printf(": ");
 
-                        char messageContent[recv_amount-3-i];
-                        for (ssize_t j = i+3; j < recv_amount ; ++j) {
-                            messageContent[j-i-3] = buffer[j];
+                        // Process the message content
+                        ssize_t j = i;
+                        while (j < recv_amount-1){
+                            printf("%c", buffer[j]);
+                            j++;
+
                         }
-                        char message[recv_amount-3];
-                        sprintf(message, "%s: %s\n", displayName, messageContent);
-                        printf("%s\n", message);
+                        printf("\n");
+
+                        // Send confirmation
                         sendConfirmation(sockfd, &peer_addr, sequence_number);
                         break;
                     }
@@ -541,7 +536,8 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
 
 void sendConfirmation(int sockfd, struct sockaddr_in *addr, uint16_t sequenceNumber) {
     uint8_t confirmationMessage[3];
-    confirmationMessage[0] = 0x00;
+    confirmationMessage[0] = CONFIRMATION_MESSAGE;
+    // Split the sequence number into two bytes
     confirmationMessage[1] = (sequenceNumber >> 8) & 0xFF;
     confirmationMessage[2] = sequenceNumber & 0xFF;
     sendto(sockfd, confirmationMessage, sizeof(confirmationMessage), 0, (struct sockaddr*)addr, sizeof(*addr));
