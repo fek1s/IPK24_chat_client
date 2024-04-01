@@ -1,6 +1,10 @@
 #include "ipkcpc_utils.h"
 
+bool terminate = false;
+
 int useUDP(ProgramArguments args) {
+    //bool terminate;
+    //bool *terminatePtr = &terminate;
     int socketFD = createUdpSocket();
     struct SendDatagram sendDatagrams[MAX_DATAGRAMS];
 
@@ -29,64 +33,68 @@ int useUDP(ProgramArguments args) {
             seqNum, args.udp_timeout, args.max_retransmissions};
     pthread_create(&tid, NULL, confirmation_checker, (void*)&thread_args);
 
+    bool isBye = false;
     while(!terminate){
         char buffer[MAX_MESSAGE_SIZE];
+        if (!isBye) {
+            fgets(buffer, sizeof(buffer), stdin);
+            ssize_t messageSize = strlen(buffer);
 
-        fgets(buffer, sizeof(buffer), stdin);
-        ssize_t messageSize = strlen(buffer);
-
-        // Parse the input message TODO REMOVE
-        printf("Message: %s\n", buffer);
-        printf("Size of buffer: %lo\n", strlen(buffer));
-        if (strlen(buffer) == 1) {
-            fprintf(stderr, "No message entered\n");
-            continue;
-        }
-        bool isBye = false;
-        if (strcmp(buffer, "/bye\n") == 0) {
-            //pthread_cancel(tid);
-            //pthread_cancel(tid_receive);
-            //break;
-            isBye = true;
-        }
-
-        // Parse the input message
-        uint8_t *byte = parseInputMessageUDP(buffer, &messageSize, sequenceNumber);
-
-        // TODO REMOVE
-        printf("Mesaage size: %lo\n", messageSize);
-        if (byte == NULL) {
-            fprintf(stderr, "Failed to parse input message\n");
-            continue;
-        }
-
-        // Create a new datagram
-        struct SendDatagram newDatagram;
-        newDatagram.message = byte;
-        newDatagram.messageSize = messageSize;
-        newDatagram.confirmed = false;
-        newDatagram.retransmissions = 0;
-        newDatagram.sequenceNumber = sequenceNumber;
-        newDatagram.byeMessage = isBye;
-
-        // Find an empty slot in the array of datagrams
-        int free_slot = -1;
-        for (int i = 0; i < MAX_DATAGRAMS; i++) {
-            if (sendDatagrams[i].message == NULL) {
-                free_slot = i;
-                break;
+            // Parse the input message TODO REMOVE
+            printf("Message: %s\n", buffer);
+            printf("Size of buffer: %lo\n", strlen(buffer));
+            if (strlen(buffer) == 1) {
+                fprintf(stderr, "No message entered\n");
+                continue;
             }
+            if (strcmp(buffer, "/bye\n") == 0) {
+                //pthread_cancel(tid);
+                //pthread_cancel(tid_receive);
+                //break;
+                isBye = true;
+            }
+
+            // Parse the input message
+            uint8_t *byte = parseInputMessageUDP(buffer, &messageSize, sequenceNumber);
+
+            // TODO REMOVE
+            printf("Mesaage size: %lo\n", messageSize);
+            if (byte == NULL) {
+                fprintf(stderr, "Failed to parse input message\n");
+                continue;
+            }
+
+            // Create a new datagram
+            struct SendDatagram newDatagram;
+            newDatagram.message = byte;
+            newDatagram.messageSize = messageSize;
+            newDatagram.confirmed = false;
+            newDatagram.retransmissions = 0;
+            newDatagram.sequenceNumber = sequenceNumber;
+            newDatagram.byeMessage = isBye;
+
+            // Find an empty slot in the array of datagrams
+            int free_slot = -1;
+            for (uint16_t i = 0; i < MAX_DATAGRAMS; i++) {
+                if (sendDatagrams[i].message == NULL) {
+                    free_slot = i;
+                    break;
+                }
+            }
+            if (free_slot != -1) {
+                sendDatagrams[free_slot] = newDatagram;
+                sendDatagram(socketFD, &addr, &sendDatagrams[free_slot]);
+            } else {
+                fprintf(stderr, "No free slot for new datagram\n");
+                return -1;
+            }
+            sequenceNumber++;
         }
-        if (free_slot != -1){
-            sendDatagrams[free_slot] = newDatagram;
-            sendDatagram(socketFD, &addr, &sendDatagrams[free_slot]);
-        }
-        else {
-            fprintf(stderr, "No free slot for new datagram\n");
-            return -1;
-        }
-        sequenceNumber++;
     }
+    // Destroy the threads
+    pthread_cancel(tid);
+    pthread_cancel(tid_receive);
+
     //Release memory
     for (uint16_t i = 0; i < sequenceNumber; i++) {
         if (sendDatagrams[i].message != NULL) {
@@ -94,6 +102,7 @@ int useUDP(ProgramArguments args) {
         }
     }
 
+    // Close the socket
     close(socketFD);
     return 0;
 }
@@ -197,7 +206,7 @@ void *receiveAndPrintIncomingDataUDP(void *arg){
     struct SendDatagram *sent_datagrams = thread_args->sent_datagrams;
     struct ReceivedDatagram received_datagrams[MAX_DATAGRAMS];
     uint16_t num_received_datagrams = 1;
-    for (int i = 0; i < MAX_DATAGRAMS; i++) {
+    for (uint16_t i = 0; i < MAX_DATAGRAMS; i++) {
         received_datagrams[i].sequenceNumber = 0;
         received_datagrams[i].processed = false;
     }
@@ -353,19 +362,24 @@ void *confirmation_checker(void *arg) {
     int sockfd = thread_args->sockfd;
     struct sockaddr_in server_addr = thread_args->server_addr;
     struct SendDatagram *sent_datagrams = thread_args->sent_datagrams;
-
-
-
     struct timeval current_time;
 
     while (1) {
         gettimeofday(&current_time, NULL);
 
-        // TODO PASS TIMEOUT AS ARGUMENT TO THE FUNCTION && MAX_RETRIES CHECK if works
-
         // Check confirmations for each sent datagram
         for (uint16_t i = 0; i < *thread_args->sequence_number; ++i) {
-            if (!sent_datagrams[i].confirmed && sent_datagrams[i].message != NULL) {
+            if (sent_datagrams[i].confirmed && sent_datagrams[i].byeMessage) {
+                // If the message is confirmed and it is a bye message, close the socket and terminate the program
+                terminate = true;
+                return NULL;
+            } else if (sent_datagrams[i].byeMessage && !sent_datagrams[i].confirmed && sent_datagrams[i].retransmissions >= thread_args->max_retransmissions) {
+                fprintf(stderr, "Failed to confirm bye message\n");
+                terminate = true;
+                return NULL;
+
+            }
+            else if (!sent_datagrams[i].confirmed && sent_datagrams[i].message != NULL) {
                 long elapsed_time = (current_time.tv_sec - sent_datagrams[i].sentTime.tv_sec) * 1000 +
                                     (current_time.tv_usec - sent_datagrams[i].sentTime.tv_usec) / 1000;
                 if (elapsed_time >= thread_args->udp_timeout) {
@@ -376,10 +390,6 @@ void *confirmation_checker(void *arg) {
                         sent_datagrams[i].retransmissions++;
                     }
                 }
-            } else if (sent_datagrams[i].confirmed && sent_datagrams[i].byeMessage) {
-                // If the message is confirmed and it is a bye message, close the socket and terminate the program
-                terminate = true;
-                return NULL;
             }
         }
 

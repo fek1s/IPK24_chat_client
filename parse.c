@@ -329,9 +329,9 @@ uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequ
             printf("/exit - Exit the chat\n");
             //strcpy(message, "/CONTINUE");
             return NULL;
-        } else if (strcmp(command, "/exit") == 0) {
-            printf("EXIT command\n");
-            strcpy(message, "/exit\n");
+        } else if (strcmp(command, "/bye") == 0) {
+            printf("BYE command\n");
+            strcpy(message, "/bye\n");
             //TODO BYE
         } else {
             fprintf(stderr, "Invalid command\n");

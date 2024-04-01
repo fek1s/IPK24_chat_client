@@ -25,11 +25,8 @@
 #define MAX_MESSAGE_SIZE 1500
 #define MAX_COMMAND_SIZE 30
 #define MESSAGE_CONTENT 1400
-#define MAX_DATAGRAMS 100
+#define MAX_DATAGRAMS 65535
 #define MAX_DISPLAY_NAME 20
-
-#define MAX_RETRIES 3
-#define CONFIRM_TIMEOUT_MS 250
 
 #define CONFIRMATION_MESSAGE 0x00
 #define REPLY_MESSAGE 0x01
@@ -73,7 +70,7 @@ struct ThreadArgs {
     uint8_t max_retransmissions;
 };
 
-bool terminate = false;
+
 
 /**
  * Parse arguments
