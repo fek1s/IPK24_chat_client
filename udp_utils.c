@@ -37,9 +37,13 @@ int useUDP(ProgramArguments args) {
     while(!terminate){
         char buffer[MAX_MESSAGE_SIZE];
         if (!isBye) {
-            fgets(buffer, sizeof(buffer), stdin);
+            char *fgetsresult;
+            fgetsresult = fgets(buffer, sizeof(buffer), stdin);
             ssize_t messageSize = strlen(buffer);
 
+            if (fgetsresult == NULL) {
+                fprintf(stderr, "ERR: Failed to read input\n");
+            }
             if (strlen(buffer) == 1) {
                 continue;
             }
@@ -49,6 +53,7 @@ int useUDP(ProgramArguments args) {
                 //break;
                 isBye = true;
             }
+
 
             // Parse the input message
             uint8_t *byte = parseInputMessageUDP(buffer, &messageSize, sequenceNumber);
