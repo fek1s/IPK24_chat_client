@@ -1,11 +1,15 @@
-//
-// Created by fuki on 22.3.24.
-//
+/**
+ * @file ipkcpc_utils.h
+ * @brief This is a header file containing function declarations and structures for IPK project 1
+ * @author Jakub Fukala (xfukal01)
+ */
+
 
 #ifndef IPK_PROJ1_IPKCPC_UTILS_H
 #define IPK_PROJ1_IPKCPC_UTILS_H
 
 #include "stdint.h"
+#include "parse.h"
 #include <arpa/inet.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -51,15 +55,6 @@ struct ReceivedDatagram{
     bool processed;
 };
 
-typedef struct {
-    char *transport_protocol;
-    char *server_ip;
-    int16_t port;
-    uint16_t udp_timeout;
-    u_int8_t  max_retransmissions;
-} ProgramArguments;
-
-
 struct ThreadArgs {
     int sockfd;
     struct sockaddr_in server_addr;
@@ -67,23 +62,18 @@ struct ThreadArgs {
     uint16_t *sequence_number;
 };
 
-/**
- * Parse program arguments
- * @param argc argument count
- * @param argv argument values
- * @return program arguments
- */
-ProgramArguments parseArguments(int argc, char *argv[]);
 
 /**
  * Resolve host
+ * @brief Function resolves host by IP address and port number
  * @param ip IP address
  * @param port port number
  * @return resolved host
  */
 struct sockaddr_in resolve_host(char *ip,u_int16_t port);
+
 /**
- * Create a socket
+ * Create a TCP socket
  * @return socket file descriptor
  */
 int createTcpSocket();
@@ -95,65 +85,98 @@ int createTcpSocket();
 int createUdpSocket();
 
 
+/**
+ * Use TCP
+ * @brief Used to communicate with server using TCP protocol and handle incoming data
+ * @param args program arguments
+ * @return 0 if successful, 1 otherwise
+ */
 int useTCP(ProgramArguments args);
 
 
-
+/**
+ * Use UDP
+ * @brief Used to communicate with server using UDP protocol and handle incoming data
+ * @param args program arguments
+ * @return 0 if successful, 1 otherwise
+ */
 int useUDP(ProgramArguments args);
 
 
-uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequenceNumber);
-
 /**
- * Receive and print incoming data
+ * Send message
+ * @brief Takes received message, parses it and sends it to the server its made to be ran in a separate thread
  * @param socketFD socket file descriptor
- * @return NULL
+ * @param message message
+ * @param messageSize message size
+ * @return 0 if successful, 1 otherwise
  */
 void *receiveAndPrintIncomingData(void *socketFD);
 
-/**
- * Parse input message
- * @param message message
- * @param messageSize message size
- * @return parsed message
- */
-char* parseInputMessage(char *message,ssize_t *messageSize);
 
 /**
- * Parse received message
- * @param message message
- * @param messageSize message size
- * @return parsed message
- */
-char *parseReceivedMessage(char *message, ssize_t *messageSize);
-
-/**
- * Get command from message
- * @param message message
+ * Make message
+ * @brief Support function for UDP communication, makes message from user input
  * @param command command
+ * @param message message
+ * @param messageSize message size
+ * @return message
  */
-void getCommand(char *message,char* command);
-
-/**
- * Split string by delimiter
- * @param str string
- * @param delimiter delimiter
- * @param count count
- * @return split string
- */
-char** split(const char *str, const char *delimiter, int *count);
-
 uint8_t *makeAuthMessage(char *username, char *password, char *displayName,uint16_t sequenceNumber,ssize_t *messageSize);
 
+/**
+ * Make message
+ * @brief Support function for UDP communication, makes message from user input
+ * @param sequenceNumber sequence number
+ * @param displayName display name
+ * @param message message
+ * @param messageSize message size
+ * @return message
+ */
 uint8_t *makeMsgMessage(uint16_t sequenceNumber,char *displayName ,char *message, ssize_t *messageSize);
 
+/**
+ * Make message
+ * @brief Support function for UDP communication, makes message from user input
+ * @param channel channel
+ * @param sequenceNumber sequence number
+ * @param messageSize message size
+ * @param displayName display name
+ * @return message
+ */
 uint8_t *makeJoinMessage(char *channel, uint16_t sequenceNumber, ssize_t *messageSize,char*displayName);
 
+/**
+ * Send Datagram
+ * @brief Is used to send a datagram to the server and store the sendTime to the sructure
+ * @param sequenceNumber sequence number
+ * @param messageSize message size
+ * @param SentDatagram is a structure that holds information about the sent datagram
+ * @return message
+ */
 void sendDatagram(int socketFD,struct sockaddr_in *addr, struct SendDatagram *sentDatagram);
 
+/**
+ * Confirmation checker
+ * @brief Function for checking if the message sent was confirmed by the server, if not it resends it
+ * @param arg structure with arguments for the thread
+ */
 void *confirmation_checker(void *arg);
 
+/**
+ * Send confirmation
+ * @brief Sends confirmation message to the server for specific sequence number
+ * @param sockfd socket file descriptor
+ * @param addr server address
+ * @param sequenceNumber sequence number
+ */
 void sendConfirmation(int sockfd, struct sockaddr_in *addr, uint16_t sequenceNumber);
 
+/**
+ * Receives UDP messages from the server
+ * @brief Listens for incoming UDP messages from the server and processes them
+ * @param arg structure with arguments for the thread
+ */
 void *receiveAndPrintIncomingDataUDP(void *arg);
+
 #endif //IPK_PROJ1_IPKCPC_UTILS_H

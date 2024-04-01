@@ -6,8 +6,9 @@
  */
 
 
-#include "ipkcpc_utils.h"
-char DisplayName[20];
+#include "parse.h"
+
+char DisplayName[MAX_DISPLAY_NAME];
 
 ProgramArguments parseArguments(int argc, char *argv[]){
     ProgramArguments args;
@@ -332,5 +333,60 @@ uint8_t *parseInputMessageUDP(char *message, ssize_t *messageSize, uint16_t sequ
     return makeMsgMessage(sequenceNumber, DisplayName, message, messageSize);
 }
 
+void getCommand(char *message,char* command){
+    int i = 0;
+    while (message[i] != ' ' && message[i] != '\n' && message[i] != '\0'){
+        command[i] = message[i];
+        i++;
+    }
+    command[i] = '\0';
+}
 
+char** split(const char *str, const char *delimiter, int *count) {
+    char **result = NULL;
+    char *token;
+    int i = 0;
+
+    // Copy the input string to avoid modifying the original string
+    char *str_copy = strdup(str);
+    if (str_copy == NULL) {
+        fprintf(stderr, "Memory allocation error.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Allocate memory for the array of strings
+    result = (char**)malloc(sizeof(char*));
+    if (result == NULL) {
+        fprintf(stderr, "Memory allocation error.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Tokenize the string using the delimiter
+    token = strtok(str_copy, delimiter);
+    while (token != NULL) {
+        // Resize the array to accommodate the new token
+        result = (char**)realloc(result, (i + 1) * sizeof(char*));
+        if (result == NULL) {
+            fprintf(stderr, "Memory allocation error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Allocate memory for the token
+        result[i] = strdup(token);
+        if (result[i] == NULL) {
+            fprintf(stderr, "Memory allocation error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        i++;
+        token = strtok(NULL, delimiter);
+    }
+
+    *count = i; // Set the count of tokens
+
+    // Free the temporary copy of the string
+    free(str_copy);
+
+    return result;
+}
 
